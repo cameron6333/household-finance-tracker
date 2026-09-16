@@ -326,6 +326,20 @@
     .btn-secondary { background: var(--paper); color: var(--ink); border: 1px solid var(--line); flex: 1; }
     .btn-secondary:hover { background: #E3E4DA; }
 
+    .btn-add-item {
+      width: 100%;
+      margin-top: 10px;
+      background: var(--paper);
+      color: var(--ink);
+      border: 1px dashed #B9BBAE;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn-add-item:hover { background: #E3E4DA; }
+
     .button-group { display: flex; gap: 8px; margin-top: 12px; }
 
     .file-input-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
@@ -404,15 +418,15 @@
     .btn-cameron { background: var(--cameron); color: white; }
     .btn-lucy { background: var(--lucy); color: white; }
 
-    .extra-row {
+    .item-row {
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 8px 0;
       border-bottom: 1px solid var(--line);
     }
-    .extra-row:last-child { border-bottom: none; }
-    .extra-row input[type=text] {
+    .item-row:last-child { border-bottom: none; }
+    .item-row input[type=text] {
       flex: 1;
       width: auto;
       min-width: 0;
@@ -424,7 +438,7 @@
       background: var(--card);
       color: var(--ink);
     }
-    .extra-row input[type=number] {
+    .item-row input[type=number] {
       width: 90px;
       flex-shrink: 0;
       padding: 8px 10px;
@@ -436,12 +450,12 @@
       background: var(--card);
       color: var(--ink);
     }
-    .extra-row input:focus {
+    .item-row input:focus {
       outline: none;
       border-color: var(--ink);
       box-shadow: 0 0 0 3px rgba(31, 42, 36, 0.1);
     }
-    .extra-remove {
+    .item-remove {
       flex-shrink: 0;
       width: 30px;
       height: 30px;
@@ -453,8 +467,8 @@
       line-height: 1;
       cursor: pointer;
     }
-    .extra-remove:hover { opacity: 0.8; }
-    .extras-empty { font-size: 12px; color: var(--ink-soft); padding: 4px 0; }
+    .item-remove:hover { opacity: 0.8; }
+    .items-empty { font-size: 12px; color: var(--ink-soft); padding: 4px 0 8px; }
   </style>
 </head>
 <body>
@@ -592,48 +606,26 @@
           <label class="label" for="joint-councilTaxSummer">Council tax (Apr&ndash;Aug)</label>
           <input type="number" min="0" id="joint-councilTaxSummer" step="5" onchange="onFieldChange()">
         </div>
-        <div class="row">
-          <label class="label" for="joint-homeContentsInsurance">Home &amp; contents insurance</label>
-          <input type="number" min="0" id="joint-homeContentsInsurance" step="5" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="joint-maintenanceFund">Maintenance fund</label>
-          <input type="number" min="0" id="joint-maintenanceFund" step="10" onchange="onFieldChange()">
-        </div>
+        <div id="joint-housing-items"></div>
+        <button class="btn-add-item" onclick="addItem('joint','housing')">+ Add to Housing</button>
       </div>
 
       <div class="section">
         <h2>Utilities</h2>
-        <div class="row">
-          <label class="label" for="joint-gasElectricity">Gas &amp; electricity</label>
-          <input type="number" min="0" id="joint-gasElectricity" step="10" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="joint-water">Water</label>
-          <input type="number" min="0" id="joint-water" step="5" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="joint-phoneInternet">Phone &amp; internet</label>
-          <input type="number" min="0" id="joint-phoneInternet" step="5" onchange="onFieldChange()">
-        </div>
+        <div id="joint-utilities-items"></div>
+        <button class="btn-add-item" onclick="addItem('joint','utilities')">+ Add to Utilities</button>
       </div>
 
       <div class="section">
         <h2>Household</h2>
-        <div class="row">
-          <label class="label" for="joint-groceries">Groceries</label>
-          <input type="number" min="0" id="joint-groceries" step="10" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="joint-holidaySavings">Holiday savings</label>
-          <input type="number" min="0" id="joint-holidaySavings" step="10" onchange="onFieldChange()">
-        </div>
+        <div id="joint-household-items"></div>
+        <button class="btn-add-item" onclick="addItem('joint','household')">+ Add to Household</button>
       </div>
 
       <div class="section">
-        <h2>Other joint expenses</h2>
-        <div id="joint-extras-list"></div>
-        <button class="btn-secondary" style="width:100%;margin-top:8px;" onclick="addExtra('joint')">+ Add expense</button>
+        <h2>Other</h2>
+        <div id="joint-other-items"></div>
+        <button class="btn-add-item" onclick="addItem('joint','other')">+ Add to Other</button>
       </div>
 
       <div class="section">
@@ -646,48 +638,20 @@
     <div id="cameron" class="tab-content">
       <div class="section">
         <h2>Transport</h2>
-        <div class="row">
-          <label class="label" for="cameron-carFinance">Car finance</label>
-          <input type="number" min="0" id="cameron-carFinance" step="10" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="cameron-carFuel">Car fuel</label>
-          <input type="number" min="0" id="cameron-carFuel" step="10" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="cameron-carInsurance">Car insurance</label>
-          <input type="number" min="0" id="cameron-carInsurance" step="10" onchange="onFieldChange()">
-        </div>
+        <div id="cameron-transport-items"></div>
+        <button class="btn-add-item" onclick="addItem('cameron','transport')">+ Add to Transport</button>
       </div>
 
       <div class="section">
         <h2>Personal</h2>
-        <div class="row">
-          <label class="label" for="cameron-haircuts">Haircuts</label>
-          <input type="number" min="0" id="cameron-haircuts" step="5" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="cameron-clothingCare">Clothing &amp; care</label>
-          <input type="number" min="0" id="cameron-clothingCare" step="10" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="cameron-subscriptions">Subscriptions</label>
-          <input type="number" min="0" id="cameron-subscriptions" step="5" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="cameron-eatingOut">Eating out</label>
-          <input type="number" min="0" id="cameron-eatingOut" step="10" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="cameron-other">Other</label>
-          <input type="number" min="0" id="cameron-other" step="10" onchange="onFieldChange()">
-        </div>
+        <div id="cameron-personal-items"></div>
+        <button class="btn-add-item" onclick="addItem('cameron','personal')">+ Add to Personal</button>
       </div>
 
       <div class="section">
-        <h2>Other expenses</h2>
-        <div id="cameron-extras-list"></div>
-        <button class="btn-secondary" style="width:100%;margin-top:8px;" onclick="addExtra('cameron')">+ Add expense</button>
+        <h2>Other</h2>
+        <div id="cameron-other-items"></div>
+        <button class="btn-add-item" onclick="addItem('cameron','other')">+ Add to Other</button>
       </div>
 
       <div class="section">
@@ -700,48 +664,20 @@
     <div id="lucy" class="tab-content">
       <div class="section">
         <h2>Transport</h2>
-        <div class="row">
-          <label class="label" for="lucy-carFinance">Car finance</label>
-          <input type="number" min="0" id="lucy-carFinance" step="10" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="lucy-carFuel">Car fuel</label>
-          <input type="number" min="0" id="lucy-carFuel" step="10" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="lucy-carInsurance">Car insurance</label>
-          <input type="number" min="0" id="lucy-carInsurance" step="10" onchange="onFieldChange()">
-        </div>
+        <div id="lucy-transport-items"></div>
+        <button class="btn-add-item" onclick="addItem('lucy','transport')">+ Add to Transport</button>
       </div>
 
       <div class="section">
         <h2>Personal</h2>
-        <div class="row">
-          <label class="label" for="lucy-haircuts">Haircuts</label>
-          <input type="number" min="0" id="lucy-haircuts" step="5" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="lucy-clothingCare">Clothing &amp; care</label>
-          <input type="number" min="0" id="lucy-clothingCare" step="10" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="lucy-subscriptions">Subscriptions</label>
-          <input type="number" min="0" id="lucy-subscriptions" step="5" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="lucy-eatingOut">Eating out</label>
-          <input type="number" min="0" id="lucy-eatingOut" step="10" onchange="onFieldChange()">
-        </div>
-        <div class="row">
-          <label class="label" for="lucy-other">Other</label>
-          <input type="number" min="0" id="lucy-other" step="10" onchange="onFieldChange()">
-        </div>
+        <div id="lucy-personal-items"></div>
+        <button class="btn-add-item" onclick="addItem('lucy','personal')">+ Add to Personal</button>
       </div>
 
       <div class="section">
-        <h2>Other expenses</h2>
-        <div id="lucy-extras-list"></div>
-        <button class="btn-secondary" style="width:100%;margin-top:8px;" onclick="addExtra('lucy')">+ Add expense</button>
+        <h2>Other</h2>
+        <div id="lucy-other-items"></div>
+        <button class="btn-add-item" onclick="addItem('lucy','other')">+ Add to Other</button>
       </div>
 
       <div class="section">
@@ -862,6 +798,15 @@
     const SUPABASE_ANON_KEY = 'sb_publishable_z6NXdMayV1ZJDfv-s2kt2Q_FTKW7dmf';
     const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Every outgoings section (Housing/Utilities/Household/Other for Joint,
+    // Transport/Personal/Other for each person) is a { items: [{name, amount}] }
+    // list — fully user-editable: rename, add, or remove any line.
+    const SECTIONS = {
+      joint: ['housing', 'utilities', 'household', 'other'],
+      cameron: ['transport', 'personal', 'other'],
+      lucy: ['transport', 'personal', 'other']
+    };
+
     let state = null;
     let loadedVersion = null;
     let pendingTransactions = [];
@@ -957,28 +902,6 @@
       const h = state.outgoings.joint.housing;
       h.councilTaxWinter = numVal('joint-councilTaxWinter');
       h.councilTaxSummer = numVal('joint-councilTaxSummer');
-      h.homeContentsInsurance = numVal('joint-homeContentsInsurance');
-      h.maintenanceFund = numVal('joint-maintenanceFund');
-
-      const u = state.outgoings.joint.utilities;
-      u.gasElectricity = numVal('joint-gasElectricity');
-      u.water = numVal('joint-water');
-      u.phoneInternet = numVal('joint-phoneInternet');
-
-      state.outgoings.joint.groceries = numVal('joint-groceries');
-      state.outgoings.joint.holidaySavings = numVal('joint-holidaySavings');
-
-      ['cameron', 'lucy'].forEach(person => {
-        const p = state.outgoings[person];
-        p.carFinance = numVal(person + '-carFinance');
-        p.carFuel = numVal(person + '-carFuel');
-        p.carInsurance = numVal(person + '-carInsurance');
-        p.haircuts = numVal(person + '-haircuts');
-        p.clothingCare = numVal(person + '-clothingCare');
-        p.subscriptions = numVal(person + '-subscriptions');
-        p.eatingOut = numVal(person + '-eatingOut');
-        p.other = numVal(person + '-other');
-      });
 
       state.mortgage.lender = document.getElementById('mortgage-lender').value;
       state.mortgage.currentBalance = numVal('mortgage-currentBalance');
@@ -1049,40 +972,32 @@
       return state.mortgage.parts.reduce((s, p) => s + Number(p.payment || 0), 0);
     }
 
+    function getSectionTotal(bucket, section) {
+      const items = (state.outgoings[bucket][section] && state.outgoings[bucket][section].items) || [];
+      return items.reduce((s, item) => s + (Number(item.amount) || 0), 0);
+    }
+
     function getHousingTotal() {
-      const h = state.outgoings.joint.housing;
-      return getMortgageTotal() + getCouncilTax() + Number(h.homeContentsInsurance) + Number(h.maintenanceFund);
-    }
-
-    function getUtilitiesTotal() {
-      const u = state.outgoings.joint.utilities;
-      return Number(u.gasElectricity) + Number(u.water) + Number(u.phoneInternet);
-    }
-
-    function getExtrasTotal(bucket) {
-      const extras = state.outgoings[bucket].extras || [];
-      return extras.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+      return getMortgageTotal() + getCouncilTax() + getSectionTotal('joint', 'housing');
     }
 
     function getJointTotal() {
-      const j = state.outgoings.joint;
-      return getHousingTotal() + getUtilitiesTotal() + Number(j.groceries) + Number(j.holidaySavings) + getExtrasTotal('joint');
+      return getHousingTotal() +
+        getSectionTotal('joint', 'utilities') +
+        getSectionTotal('joint', 'household') +
+        getSectionTotal('joint', 'other');
     }
 
     function getPersonTotal(person) {
-      const p = state.outgoings[person];
-      return Number(p.carFinance) + Number(p.carFuel) + Number(p.carInsurance) +
-        Number(p.haircuts) + Number(p.clothingCare) + Number(p.subscriptions) + Number(p.eatingOut) + Number(p.other) +
-        getExtrasTotal(person);
+      return getSectionTotal(person, 'transport') +
+        getSectionTotal(person, 'personal') +
+        getSectionTotal(person, 'other');
     }
 
-    function getPersonDiscretionary(person) {
-      const p = state.outgoings[person];
-      return Number(p.clothingCare) + Number(p.subscriptions) + Number(p.eatingOut) + Number(p.other);
-    }
-
+    // "Other" sections are the discretionary/miscellaneous catch-all across
+    // all three tabs; everything else counts as essential for this metric.
     function getDiscretionaryTotal() {
-      return Number(state.outgoings.joint.holidaySavings) + getPersonDiscretionary('cameron') + getPersonDiscretionary('lucy');
+      return getSectionTotal('joint', 'other') + getSectionTotal('cameron', 'other') + getSectionTotal('lucy', 'other');
     }
 
     function getTotalOutgoings() {
@@ -1113,40 +1028,23 @@
       const combined = getCombinedIncome();
       document.getElementById('income-combined').textContent = fmt(combined);
 
-      // Joint tab
+      // Joint tab (council tax stays fixed — it has real seasonal logic tied to it)
       const h = state.outgoings.joint.housing;
       document.getElementById('joint-councilTaxWinter').value = h.councilTaxWinter;
       document.getElementById('joint-councilTaxSummer').value = h.councilTaxSummer;
-      document.getElementById('joint-homeContentsInsurance').value = h.homeContentsInsurance;
-      document.getElementById('joint-maintenanceFund').value = h.maintenanceFund;
       document.getElementById('out-mortgageTotal').textContent = fmt(getMortgageTotal());
-
-      const u = state.outgoings.joint.utilities;
-      document.getElementById('joint-gasElectricity').value = u.gasElectricity;
-      document.getElementById('joint-water').value = u.water;
-      document.getElementById('joint-phoneInternet').value = u.phoneInternet;
-
-      document.getElementById('joint-groceries').value = state.outgoings.joint.groceries;
-      document.getElementById('joint-holidaySavings').value = state.outgoings.joint.holidaySavings;
       document.getElementById('joint-total').textContent = fmt(getJointTotal());
 
-      // Cameron's / Lucy's tabs
-      ['cameron', 'lucy'].forEach(person => {
-        const p = state.outgoings[person];
-        document.getElementById(person + '-carFinance').value = p.carFinance;
-        document.getElementById(person + '-carFuel').value = p.carFuel;
-        document.getElementById(person + '-carInsurance').value = p.carInsurance;
-        document.getElementById(person + '-haircuts').value = p.haircuts;
-        document.getElementById(person + '-clothingCare').value = p.clothingCare;
-        document.getElementById(person + '-subscriptions').value = p.subscriptions;
-        document.getElementById(person + '-eatingOut').value = p.eatingOut;
-        document.getElementById(person + '-other').value = p.other;
-        document.getElementById(person + '-total').textContent = fmt(getPersonTotal(person));
+      // Every section (Joint's Housing/Utilities/Household/Other, each
+      // person's Transport/Personal/Other) renders the same editable list.
+      Object.keys(SECTIONS).forEach(bucket => {
+        SECTIONS[bucket].forEach(section => {
+          renderItemsSection(bucket, section);
+        });
       });
 
-      renderExtras('joint');
-      renderExtras('cameron');
-      renderExtras('lucy');
+      document.getElementById('cameron-total').textContent = fmt(getPersonTotal('cameron'));
+      document.getElementById('lucy-total').textContent = fmt(getPersonTotal('lucy'));
 
       const totalOutgoings = getTotalOutgoings();
 
@@ -1232,44 +1130,48 @@
       renderTransactions();
     }
 
-    function renderExtras(bucket) {
-      const listEl = document.getElementById(bucket + '-extras-list');
-      const extras = state.outgoings[bucket].extras || [];
+    // Generic renderer for every editable outgoings section: a list of
+    // {name, amount} rows, each with an editable name, an editable amount,
+    // and a delete button, plus an "+ Add" button owned by the caller.
+    function renderItemsSection(bucket, section) {
+      const listEl = document.getElementById(bucket + '-' + section + '-items');
+      if (!listEl) return;
+      const items = state.outgoings[bucket][section].items || [];
       listEl.innerHTML = '';
 
-      if (extras.length === 0) {
+      if (items.length === 0) {
         const empty = document.createElement('div');
-        empty.className = 'extras-empty';
-        empty.textContent = 'Nothing added yet.';
+        empty.className = 'items-empty';
+        empty.textContent = 'Nothing here yet.';
         listEl.appendChild(empty);
         return;
       }
 
-      extras.forEach((extra, idx) => {
+      items.forEach((item, idx) => {
         const row = document.createElement('div');
-        row.className = 'extra-row';
+        row.className = 'item-row';
 
         const nameInput = document.createElement('input');
         nameInput.type = 'text';
-        nameInput.placeholder = 'e.g. Gym membership';
-        nameInput.value = extra.name || '';
-        nameInput.setAttribute('aria-label', 'Expense name');
-        nameInput.onchange = () => updateExtra(bucket, idx, 'name', nameInput.value);
+        nameInput.placeholder = 'Name';
+        nameInput.value = item.name || '';
+        nameInput.setAttribute('aria-label', 'Item name');
+        nameInput.onchange = () => updateItem(bucket, section, idx, 'name', nameInput.value);
 
         const amountInput = document.createElement('input');
         amountInput.type = 'number';
         amountInput.min = '0';
         amountInput.step = '5';
-        amountInput.value = extra.amount || 0;
+        amountInput.value = item.amount || 0;
         amountInput.setAttribute('aria-label', 'Amount');
-        amountInput.onchange = () => updateExtra(bucket, idx, 'amount', Math.max(0, parseFloat(amountInput.value) || 0));
+        amountInput.onchange = () => updateItem(bucket, section, idx, 'amount', Math.max(0, parseFloat(amountInput.value) || 0));
 
         const removeBtn = document.createElement('button');
-        removeBtn.className = 'extra-remove';
+        removeBtn.className = 'item-remove';
         removeBtn.type = 'button';
         removeBtn.textContent = '×';
-        removeBtn.setAttribute('aria-label', 'Remove expense');
-        removeBtn.onclick = () => removeExtra(bucket, idx);
+        removeBtn.setAttribute('aria-label', 'Remove item');
+        removeBtn.onclick = () => removeItem(bucket, section, idx);
 
         row.appendChild(nameInput);
         row.appendChild(amountInput);
@@ -1278,19 +1180,19 @@
       });
     }
 
-    function addExtra(bucket) {
-      state.outgoings[bucket].extras = state.outgoings[bucket].extras || [];
-      state.outgoings[bucket].extras.push({ name: '', amount: 0 });
+    function addItem(bucket, section) {
+      state.outgoings[bucket][section].items = state.outgoings[bucket][section].items || [];
+      state.outgoings[bucket][section].items.push({ name: '', amount: 0 });
       onFieldChange();
     }
 
-    function updateExtra(bucket, idx, field, value) {
-      state.outgoings[bucket].extras[idx][field] = value;
+    function updateItem(bucket, section, idx, field, value) {
+      state.outgoings[bucket][section].items[idx][field] = value;
       onFieldChange();
     }
 
-    function removeExtra(bucket, idx) {
-      state.outgoings[bucket].extras.splice(idx, 1);
+    function removeItem(bucket, section, idx) {
+      state.outgoings[bucket][section].items.splice(idx, 1);
       onFieldChange();
     }
 
