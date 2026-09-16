@@ -1,0 +1,1413 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cameron & Lucy Finance Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600;8..60,700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --paper: #EDEEE8;
+      --card: #FFFFFF;
+      --ink: #1F2A24;
+      --ink-soft: #5B6259;
+      --line: #DBDCD1;
+
+      --cameron: #2F4B7C;
+      --cameron-soft: #E9EDF5;
+      --lucy: #7C3B54;
+      --lucy-soft: #F5E9EE;
+
+      --good: #3E7A52; --good-bg: #E3EFE7;
+      --warn: #A9762A; --warn-bg: #F5EBD9;
+      --bad:  #A3413C; --bad-bg:  #F5E3E2;
+
+      --serif: 'Source Serif 4', Georgia, serif;
+      --mono: 'IBM Plex Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+      --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+      --radius: 10px;
+    }
+
+    body {
+      font-family: var(--sans);
+      background: var(--paper);
+      padding: 16px;
+      font-size: 14px;
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    .container { max-width: 640px; margin: 0 auto; }
+
+    a, button, input, select { font-family: inherit; }
+
+    /* Visible keyboard focus everywhere */
+    a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible {
+      outline: 2px solid var(--ink);
+      outline-offset: 2px;
+    }
+
+    header {
+      background: var(--ink);
+      color: var(--paper);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-family: var(--serif);
+      font-weight: 600;
+      font-size: 22px;
+      letter-spacing: 0.01em;
+    }
+
+    .header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .header-row + .header-row { margin-top: 12px; }
+
+    .sync-status { font-size: 12px; color: #C9CDC4; display: flex; align-items: center; gap: 6px; }
+
+    .sync-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--good); flex-shrink: 0; }
+    .sync-dot.syncing { background: var(--warn); }
+    .sync-dot.error { background: var(--bad); }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .sync-dot.syncing { animation: pulse 1s infinite; }
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    .editing-label { font-size: 12px; color: #C9CDC4; }
+
+    .who-select {
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: 1.5px solid #4A5850;
+      background: var(--paper);
+      color: var(--ink);
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .stamp {
+      display: inline-block;
+      margin-top: 10px;
+      background: var(--paper);
+      color: var(--ink);
+      padding: 3px 10px;
+      border-radius: 3px;
+      font-family: var(--mono);
+      font-size: 10.5px;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      transform: rotate(-2deg);
+      border: 1.5px solid currentColor;
+    }
+    .stamp.person-cameron { color: var(--cameron); }
+    .stamp.person-lucy { color: var(--lucy); }
+
+    .conflict-banner {
+      background: var(--warn-bg);
+      color: var(--warn);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      margin-top: 10px;
+      display: none;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 16px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 6px;
+      overflow-x: auto;
+    }
+
+    .tab {
+      flex: 1;
+      min-width: 72px;
+      padding: 11px 10px;
+      border: none;
+      border-radius: 7px;
+      background: transparent;
+      color: var(--ink-soft);
+      cursor: pointer;
+      font-weight: 600;
+      transition: background 0.15s, color 0.15s;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+
+    .tab.active { background: var(--ink); color: var(--paper); }
+    .tab:hover:not(.active) { background: var(--paper); }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-bottom: 14px;
+    }
+
+    .section h2 {
+      font-family: var(--serif);
+      font-weight: 600;
+      font-size: 16px;
+      margin-bottom: 14px;
+      color: var(--ink);
+      border-bottom: 1px solid var(--line);
+      padding-bottom: 10px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid var(--line);
+      gap: 12px;
+    }
+
+    .row:last-child { border-bottom: none; }
+
+    .row.header {
+      background: var(--paper);
+      font-weight: 600;
+      padding: 10px 12px;
+      margin: -18px -20px 8px -20px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .row.total {
+      font-weight: 600;
+      background: var(--paper);
+      padding: 12px;
+      margin: 0 -8px;
+      border-radius: 8px;
+      border-bottom: none;
+    }
+
+    .label { flex: 1; color: var(--ink-soft); font-size: 13px; cursor: default; }
+    label.label { cursor: pointer; }
+
+    .amount {
+      font-family: var(--mono);
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+      color: var(--ink);
+      text-align: right;
+      min-width: 90px;
+    }
+
+    .row.total .amount { color: var(--ink); font-size: 16px; font-weight: 600; }
+
+    .row input[type=number], .row input[type=text] {
+      width: 118px;
+      padding: 8px 10px;
+      border: 1px solid #C7C9BB;
+      border-radius: 7px;
+      font-size: 13px;
+      font-family: var(--mono);
+      text-align: right;
+      background: var(--card);
+      color: var(--ink);
+    }
+
+    .row input[type=text] { font-family: var(--sans); text-align: left; width: 150px; }
+
+    .row input:focus {
+      outline: none;
+      border-color: var(--ink);
+      box-shadow: 0 0 0 3px rgba(31, 42, 36, 0.1);
+    }
+
+    /* Buffer gauge */
+    .buffer-hero { margin-top: 14px; text-align: center; }
+    .buffer-figure {
+      font-family: var(--mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 34px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .buffer-caption { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+
+    .gauge { margin: 14px 0 8px; }
+    .gauge-track {
+      position: relative;
+      display: flex;
+      height: 10px;
+      border-radius: 6px;
+      overflow: visible;
+    }
+    .gauge-zone { flex: 1; height: 100%; }
+    .gauge-zone:nth-child(1) { background: var(--bad); border-radius: 6px 0 0 6px; }
+    .gauge-zone:nth-child(2) { background: var(--warn); }
+    .gauge-zone:nth-child(3) { background: var(--good); border-radius: 0 6px 6px 0; }
+    .gauge-marker {
+      position: absolute;
+      top: -4px;
+      width: 3px;
+      height: 18px;
+      background: var(--ink);
+      border-radius: 2px;
+      transform: translateX(-50%);
+      transition: left 0.3s ease;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .gauge-marker { transition: none; }
+    }
+    .gauge-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: var(--ink-soft);
+      margin-top: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    .buffer-status {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 8px 14px;
+      border-radius: 8px;
+      margin-top: 12px;
+    }
+    .buffer-status.good { background: var(--good-bg); color: var(--good); }
+    .buffer-status.warn { background: var(--warn-bg); color: var(--warn); }
+    .buffer-status.bad  { background: var(--bad-bg);  color: var(--bad); }
+
+    .btn-refresh {
+      background: transparent;
+      color: var(--paper);
+      border: 1.5px solid #4A5850;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 7px;
+      cursor: pointer;
+    }
+    .btn-refresh:hover { background: rgba(255,255,255,0.08); }
+
+    .btn-primary, .btn-secondary {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+
+    .btn-primary { background: var(--ink); color: var(--paper); flex: 1; }
+    .btn-primary:hover { opacity: 0.85; }
+    .btn-secondary { background: var(--paper); color: var(--ink); border: 1px solid var(--line); flex: 1; }
+    .btn-secondary:hover { background: #E3E4DA; }
+
+    .button-group { display: flex; gap: 8px; margin-top: 12px; }
+
+    .file-input-wrapper { position: relative; overflow: hidden; display: inline-block; width: 100%; }
+    .file-input-wrapper input[type=file] { display: none; }
+
+    .file-input-label {
+      display: block;
+      padding: 10px 16px;
+      background: var(--cameron-soft);
+      color: var(--cameron);
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1.5px dashed var(--cameron);
+    }
+    .file-input-label:hover { background: #DFE5F0; }
+
+    .transaction-item {
+      background: var(--paper);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      border-left: 3px solid var(--ink);
+    }
+
+    .transaction-header { display: flex; justify-content: space-between; margin-bottom: 6px; gap: 8px; }
+    .transaction-desc { font-weight: 600; color: var(--ink); }
+    .transaction-amount { font-family: var(--mono); font-weight: 600; color: var(--bad); white-space: nowrap; }
+    .transaction-details { font-size: 12px; color: var(--ink-soft); display: flex; gap: 12px; }
+
+    .import-preview {
+      background: var(--good-bg);
+      color: var(--good);
+      padding: 12px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 13px;
+    }
+    .import-preview strong { color: var(--good); }
+
+    .info-box {
+      background: var(--cameron-soft);
+      border-left: 3px solid var(--cameron);
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--ink);
+      margin-bottom: 16px;
+    }
+
+    .who-prompt {
+      position: fixed;
+      inset: 0;
+      background: rgba(31,42,36,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      padding: 16px;
+    }
+
+    .who-prompt-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 320px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .who-prompt-card h2 { font-family: var(--serif); margin-bottom: 16px; font-size: 16px; }
+    .who-prompt-card .button-group { margin-top: 8px; }
+
+    .btn-cameron { background: var(--cameron); color: white; }
+    .btn-lucy { background: var(--lucy); color: white; }
+
+    .extra-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .extra-row:last-child { border-bottom: none; }
+    .extra-row input[type=text] {
+      flex: 1;
+      width: auto;
+      min-width: 0;
+      padding: 8px 10px;
+      border: 1px solid #C7C9BB;
+      border-radius: 7px;
+      font-size: 13px;
+      font-family: var(--sans);
+      background: var(--card);
+      color: var(--ink);
+    }
+    .extra-row input[type=number] {
+      width: 90px;
+      flex-shrink: 0;
+      padding: 8px 10px;
+      border: 1px solid #C7C9BB;
+      border-radius: 7px;
+      font-size: 13px;
+      font-family: var(--mono);
+      text-align: right;
+      background: var(--card);
+      color: var(--ink);
+    }
+    .extra-row input:focus {
+      outline: none;
+      border-color: var(--ink);
+      box-shadow: 0 0 0 3px rgba(31, 42, 36, 0.1);
+    }
+    .extra-remove {
+      flex-shrink: 0;
+      width: 30px;
+      height: 30px;
+      border: none;
+      border-radius: 7px;
+      background: var(--bad-bg);
+      color: var(--bad);
+      font-size: 16px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .extra-remove:hover { opacity: 0.8; }
+    .extras-empty { font-size: 12px; color: var(--ink-soft); padding: 4px 0; }
+  </style>
+</head>
+<body>
+  <div id="fatalError" style="display:none; position:fixed; inset:0; z-index:200; background:#F5E3E2; color:#7a2b26; padding:20px; font-family:monospace; font-size:12px; overflow:auto; white-space:pre-wrap;"></div>
+  <script>
+    // Registered in its own script block, BEFORE the main app script, so that
+    // even a syntax error in the main script (which would otherwise fail
+    // completely silently) still gets caught and shown here.
+    function showFatalError(message) {
+      var el = document.getElementById('fatalError');
+      if (!el) { return; }
+      el.textContent = 'Something went wrong loading the app:\n\n' + message +
+        '\n\nScreenshot this and send it back so it can be fixed.';
+      el.style.display = 'block';
+    }
+    window.addEventListener('error', function(e) {
+      showFatalError((e.message || 'Unknown error') + '\n' + (e.filename ? (e.filename + ':' + e.lineno) : ''));
+    });
+    window.addEventListener('unhandledrejection', function(e) {
+      showFatalError('Unhandled promise rejection: ' + (e.reason && e.reason.message ? e.reason.message : e.reason));
+    });
+    setTimeout(function() {
+      if (typeof state === 'undefined' || state === null) {
+        showFatalError('The app never finished loading (still stuck 10s after page load). ' +
+          'This usually means the main script failed silently, or the connection to Supabase is slow/blocked.');
+      }
+    }, 10000);
+  </script>
+  <div id="whoPrompt" class="who-prompt" style="display:none;">
+    <div class="who-prompt-card">
+      <h2>Who's editing?</h2>
+      <div class="button-group">
+        <button class="btn-primary btn-cameron" onclick="setWhoAmI('Cameron')">Cameron</button>
+        <button class="btn-primary btn-lucy" onclick="setWhoAmI('Lucy')">Lucy</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <header>
+      <div class="header-row">
+        <h1>Finance Tracker</h1>
+        <div class="sync-status">
+          <div class="sync-dot" id="syncDot"></div>
+          <span id="syncStatus">Loading&hellip;</span>
+          <button class="btn-refresh" onclick="refreshData()">&#8635; Sync</button>
+        </div>
+      </div>
+      <div class="header-row">
+        <label class="editing-label" for="whoSelect">Editing as</label>
+        <select class="who-select" id="whoSelect" onchange="setWhoAmI(this.value)">
+          <option value="">Select&hellip;</option>
+          <option value="Cameron">Cameron</option>
+          <option value="Lucy">Lucy</option>
+        </select>
+      </div>
+      <div id="lastUpdated"></div>
+      <div class="conflict-banner" id="conflictBanner">
+        Lucy or Cameron saved a change while you were editing. Their latest numbers are now showing — please redo the change you just made.
+      </div>
+    </header>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="overview" onclick="switchTab('overview')">Overview</button>
+      <button class="tab" data-tab="income" onclick="switchTab('income')">Income</button>
+      <button class="tab" data-tab="joint" onclick="switchTab('joint')">Joint</button>
+      <button class="tab" data-tab="cameron" onclick="switchTab('cameron')">Cameron's</button>
+      <button class="tab" data-tab="lucy" onclick="switchTab('lucy')">Lucy's</button>
+      <button class="tab" data-tab="mortgage" onclick="switchTab('mortgage')">Mortgage</button>
+      <button class="tab" data-tab="import" onclick="switchTab('import')">Import CSV</button>
+    </div>
+
+    <!-- OVERVIEW -->
+    <div id="overview" class="tab-content active">
+      <div class="section">
+        <h2>Monthly summary</h2>
+        <div class="row header"><span class="label">Category</span><span class="amount">Amount</span></div>
+        <div class="row"><span class="label">Total income</span><span class="amount" id="ov-income">-</span></div>
+        <div class="row"><span class="label">Joint outgoings</span><span class="amount" id="ov-jointTotal">-</span></div>
+        <div class="row"><span class="label">Cameron's outgoings</span><span class="amount" id="ov-cameronTotal">-</span></div>
+        <div class="row"><span class="label">Lucy's outgoings</span><span class="amount" id="ov-lucyTotal">-</span></div>
+        <div class="row"><span class="label">Household total outgoings</span><span class="amount" id="ov-outgoings">-</span></div>
+
+        <div class="buffer-hero">
+          <div class="buffer-caption">Monthly buffer</div>
+          <div class="buffer-figure" id="ov-buffer">-</div>
+          <div class="gauge">
+            <div class="gauge-track">
+              <div class="gauge-zone"></div>
+              <div class="gauge-zone"></div>
+              <div class="gauge-zone"></div>
+              <div class="gauge-marker" id="gaugeMarker" style="left:0%"></div>
+            </div>
+            <div class="gauge-labels"><span>Tight</span><span>Comfortable</span><span>Strong</span></div>
+          </div>
+          <div id="bufferIndicator" class="buffer-status good">Loading&hellip;</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Key metrics</h2>
+        <div class="row"><span class="label">Mortgage as % of income</span><span class="amount" id="ov-mortgagePct">-</span></div>
+        <div class="row"><span class="label">Total housing costs (inc. council tax, insurance)</span><span class="amount" id="ov-housing">-</span></div>
+        <div class="row"><span class="label">Essential bills as % of income</span><span class="amount" id="ov-essentialPct">-</span></div>
+        <div class="row"><span class="label">Remortgage target (in ~<span id="ov-years">-</span> years)</span><span class="amount" id="ov-targetVal">-</span></div>
+      </div>
+    </div>
+
+    <!-- INCOME -->
+    <div id="income" class="tab-content">
+      <div class="section">
+        <h2>Monthly income</h2>
+        <div class="row">
+          <label class="label" for="income-cameron">Cameron (after tax)</label>
+          <input type="number" min="0" id="income-cameron" step="50" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="income-lucy">Lucy (after tax)</label>
+          <input type="number" min="0" id="income-lucy" step="50" onchange="onFieldChange()">
+        </div>
+        <div class="row total"><span class="label">Combined monthly income</span><span class="amount" id="income-combined">-</span></div>
+      </div>
+    </div>
+
+    <!-- JOINT -->
+    <div id="joint" class="tab-content">
+      <div class="section">
+        <h2>Housing</h2>
+        <div class="row"><span class="label">Mortgage (see Mortgage tab)</span><span class="amount" id="out-mortgageTotal">-</span></div>
+        <div class="row">
+          <label class="label" for="joint-councilTaxWinter">Council tax (Sep&ndash;Mar)</label>
+          <input type="number" min="0" id="joint-councilTaxWinter" step="5" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="joint-councilTaxSummer">Council tax (Apr&ndash;Aug)</label>
+          <input type="number" min="0" id="joint-councilTaxSummer" step="5" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="joint-homeContentsInsurance">Home &amp; contents insurance</label>
+          <input type="number" min="0" id="joint-homeContentsInsurance" step="5" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="joint-maintenanceFund">Maintenance fund</label>
+          <input type="number" min="0" id="joint-maintenanceFund" step="10" onchange="onFieldChange()">
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Utilities</h2>
+        <div class="row">
+          <label class="label" for="joint-gasElectricity">Gas &amp; electricity</label>
+          <input type="number" min="0" id="joint-gasElectricity" step="10" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="joint-water">Water</label>
+          <input type="number" min="0" id="joint-water" step="5" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="joint-phoneInternet">Phone &amp; internet</label>
+          <input type="number" min="0" id="joint-phoneInternet" step="5" onchange="onFieldChange()">
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Household</h2>
+        <div class="row">
+          <label class="label" for="joint-groceries">Groceries</label>
+          <input type="number" min="0" id="joint-groceries" step="10" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="joint-holidaySavings">Holiday savings</label>
+          <input type="number" min="0" id="joint-holidaySavings" step="10" onchange="onFieldChange()">
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Other joint expenses</h2>
+        <div id="joint-extras-list"></div>
+        <button class="btn-secondary" style="width:100%;margin-top:8px;" onclick="addExtra('joint')">+ Add expense</button>
+      </div>
+
+      <div class="section">
+        <h2>Joint total</h2>
+        <div class="row total"><span class="label">Total joint outgoings</span><span class="amount" id="joint-total">-</span></div>
+      </div>
+    </div>
+
+    <!-- CAMERON'S -->
+    <div id="cameron" class="tab-content">
+      <div class="section">
+        <h2>Transport</h2>
+        <div class="row">
+          <label class="label" for="cameron-carFinance">Car finance</label>
+          <input type="number" min="0" id="cameron-carFinance" step="10" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="cameron-carFuel">Car fuel</label>
+          <input type="number" min="0" id="cameron-carFuel" step="10" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="cameron-carInsurance">Car insurance</label>
+          <input type="number" min="0" id="cameron-carInsurance" step="10" onchange="onFieldChange()">
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Personal</h2>
+        <div class="row">
+          <label class="label" for="cameron-haircuts">Haircuts</label>
+          <input type="number" min="0" id="cameron-haircuts" step="5" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="cameron-clothingCare">Clothing &amp; care</label>
+          <input type="number" min="0" id="cameron-clothingCare" step="10" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="cameron-subscriptions">Subscriptions</label>
+          <input type="number" min="0" id="cameron-subscriptions" step="5" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="cameron-eatingOut">Eating out</label>
+          <input type="number" min="0" id="cameron-eatingOut" step="10" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="cameron-other">Other</label>
+          <input type="number" min="0" id="cameron-other" step="10" onchange="onFieldChange()">
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Other expenses</h2>
+        <div id="cameron-extras-list"></div>
+        <button class="btn-secondary" style="width:100%;margin-top:8px;" onclick="addExtra('cameron')">+ Add expense</button>
+      </div>
+
+      <div class="section">
+        <h2>Cameron's total</h2>
+        <div class="row total"><span class="label">Total Cameron's outgoings</span><span class="amount" id="cameron-total">-</span></div>
+      </div>
+    </div>
+
+    <!-- LUCY'S -->
+    <div id="lucy" class="tab-content">
+      <div class="section">
+        <h2>Transport</h2>
+        <div class="row">
+          <label class="label" for="lucy-carFinance">Car finance</label>
+          <input type="number" min="0" id="lucy-carFinance" step="10" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="lucy-carFuel">Car fuel</label>
+          <input type="number" min="0" id="lucy-carFuel" step="10" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="lucy-carInsurance">Car insurance</label>
+          <input type="number" min="0" id="lucy-carInsurance" step="10" onchange="onFieldChange()">
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Personal</h2>
+        <div class="row">
+          <label class="label" for="lucy-haircuts">Haircuts</label>
+          <input type="number" min="0" id="lucy-haircuts" step="5" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="lucy-clothingCare">Clothing &amp; care</label>
+          <input type="number" min="0" id="lucy-clothingCare" step="10" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="lucy-subscriptions">Subscriptions</label>
+          <input type="number" min="0" id="lucy-subscriptions" step="5" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="lucy-eatingOut">Eating out</label>
+          <input type="number" min="0" id="lucy-eatingOut" step="10" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="lucy-other">Other</label>
+          <input type="number" min="0" id="lucy-other" step="10" onchange="onFieldChange()">
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Other expenses</h2>
+        <div id="lucy-extras-list"></div>
+        <button class="btn-secondary" style="width:100%;margin-top:8px;" onclick="addExtra('lucy')">+ Add expense</button>
+      </div>
+
+      <div class="section">
+        <h2>Lucy's total</h2>
+        <div class="row total"><span class="label">Total Lucy's outgoings</span><span class="amount" id="lucy-total">-</span></div>
+      </div>
+    </div>
+
+    <!-- MORTGAGE -->
+    <div id="mortgage" class="tab-content">
+      <div class="section">
+        <h2>Current mortgage details</h2>
+        <div class="row">
+          <label class="label" for="mortgage-lender">Lender</label>
+          <input type="text" id="mortgage-lender" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="mortgage-currentBalance">Current balance</label>
+          <input type="number" min="0" id="mortgage-currentBalance" step="100" onchange="onFieldChange()">
+        </div>
+        <div class="row"><span class="label">Monthly payment (both parts)</span><span class="amount" id="mortgage-totalPayment">-</span></div>
+        <div class="row">
+          <label class="label" for="mortgage-termRemainingYears">Term remaining (years)</label>
+          <input type="number" min="0" id="mortgage-termRemainingYears" step="1" onchange="onFieldChange()">
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Mortgage breakdown</h2>
+        <div class="row">
+          <label class="label" for="part1-rate">Part 1 rate (%)</label>
+          <input type="number" min="0" id="part1-rate" step="0.01" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="part1-fixedUntil">Part 1 fixed until</label>
+          <input type="text" id="part1-fixedUntil" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="part1-payment">Part 1 payment</label>
+          <input type="number" min="0" id="part1-payment" step="0.01" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="part2-rate">Part 2 rate (%)</label>
+          <input type="number" min="0" id="part2-rate" step="0.01" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="part2-fixedUntil">Part 2 fixed until</label>
+          <input type="text" id="part2-fixedUntil" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="part2-payment">Part 2 payment</label>
+          <input type="number" min="0" id="part2-payment" step="0.01" onchange="onFieldChange()">
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Remortgage plan</h2>
+        <div class="row">
+          <label class="label" for="remortgage-yearsUntil">Years until remortgage</label>
+          <input type="number" min="0" id="remortgage-yearsUntil" step="1" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="remortgage-targetValuation">Target valuation</label>
+          <input type="number" min="0" id="remortgage-targetValuation" step="1000" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="remortgage-projectedBalance">Projected balance</label>
+          <input type="number" min="0" id="remortgage-projectedBalance" step="1000" onchange="onFieldChange()">
+        </div>
+        <div class="row">
+          <label class="label" for="remortgage-newTermYears">New mortgage term (years)</label>
+          <input type="number" min="0" id="remortgage-newTermYears" step="1" onchange="onFieldChange()">
+        </div>
+        <div class="row"><span class="label">Projected LTV</span><span class="amount" id="mortgage-ltv">-</span></div>
+      </div>
+
+      <div class="section">
+        <h2>Projected rates at remortgage</h2>
+        <div id="rateTable"></div>
+      </div>
+    </div>
+
+    <!-- IMPORT -->
+    <div id="import" class="tab-content">
+      <div class="section">
+        <h2>Import bank statements</h2>
+        <div class="info-box">Supports CSV exports from Monzo, Amex, and Lloyds.</div>
+
+        <div>
+          <div class="file-input-wrapper">
+            <label class="file-input-label" for="csvFile">Choose file or drag &amp; drop</label>
+            <input type="file" id="csvFile" accept=".csv" onchange="handleCSVUpload(event)">
+          </div>
+        </div>
+
+        <div id="importPreview" style="display: none; margin-top: 16px;">
+          <div class="import-preview">Found <strong id="importCount">0</strong> transactions</div>
+          <div id="transactionList"></div>
+          <div class="button-group">
+            <button class="btn-primary" onclick="applyImport()">Apply import</button>
+            <button class="btn-secondary" onclick="cancelImport()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Recent transactions</h2>
+        <div id="recentTransactions"><span class="label">Nothing imported yet — choose a CSV above to add some.</span></div>
+        <div class="button-group">
+          <button class="btn-secondary" onclick="clearTransactions()">Clear all</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const SUPABASE_URL = 'https://ymxrswlugvgnkklqzjqt.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_z6NXdMayV1ZJDfv-s2kt2Q_FTKW7dmf';
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    let state = null;
+    let loadedVersion = null;
+    let pendingTransactions = [];
+
+    document.addEventListener('DOMContentLoaded', () => {
+      try {
+        const who = localStorage.getItem('whoAmI');
+        if (who) {
+          document.getElementById('whoSelect').value = who;
+        } else {
+          document.getElementById('whoPrompt').style.display = 'flex';
+        }
+        refreshData();
+        setInterval(() => {
+          if (!isEditingAnyInput()) refreshData();
+        }, 30000);
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden && !isEditingAnyInput()) refreshData();
+        });
+        subscribeToLiveUpdates();
+      } catch (err) {
+        showFatalError(err.message + '\n' + (err.stack || ''));
+      }
+    });
+
+    // Realtime push: when Cameron or Lucy saves on another device, this tab
+    // picks it up immediately instead of waiting for the next poll.
+    function subscribeToLiveUpdates() {
+      db.channel('household_finances_changes')
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'household_finances', filter: 'id=eq.default' }, (payload) => {
+          if (isEditingAnyInput()) return;
+          applyRow(payload.new);
+          render();
+          setSyncStatus('synced', 'Synced');
+        })
+        .subscribe();
+    }
+
+    function applyRow(row) {
+      state = Object.assign({}, row.data, {
+        version: row.version,
+        updatedAt: row.updated_at,
+        updatedBy: row.updated_by
+      });
+      loadedVersion = row.version;
+    }
+
+    function setWhoAmI(name) {
+      localStorage.setItem('whoAmI', name);
+      document.getElementById('whoSelect').value = name;
+      document.getElementById('whoPrompt').style.display = 'none';
+    }
+
+    function isEditingAnyInput() {
+      const el = document.activeElement;
+      return el && (el.tagName === 'INPUT');
+    }
+
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+      document.getElementById(tabName).classList.add('active');
+      document.querySelector('.tab[data-tab="' + tabName + '"]').classList.add('active');
+      if (!isEditingAnyInput()) refreshData();
+    }
+
+    function setSyncStatus(status, text) {
+      const dot = document.getElementById('syncDot');
+      const label = document.getElementById('syncStatus');
+      dot.className = 'sync-dot' + (status === 'syncing' ? ' syncing' : status === 'error' ? ' error' : '');
+      label.textContent = text;
+    }
+
+    async function refreshData() {
+      setSyncStatus('syncing', 'Syncing…');
+      const { data: row, error } = await db.from('household_finances').select('*').eq('id', 'default').single();
+      if (error) { onError(error); return; }
+      applyRow(row);
+      render();
+      setSyncStatus('synced', 'Synced');
+    }
+
+    function onError(err) {
+      setSyncStatus('error', 'Couldn’t reach Supabase');
+      console.log(err);
+    }
+
+    function captureForm() {
+      if (!state) return;
+      state.income.cameron = numVal('income-cameron');
+      state.income.lucy = numVal('income-lucy');
+
+      const h = state.outgoings.joint.housing;
+      h.councilTaxWinter = numVal('joint-councilTaxWinter');
+      h.councilTaxSummer = numVal('joint-councilTaxSummer');
+      h.homeContentsInsurance = numVal('joint-homeContentsInsurance');
+      h.maintenanceFund = numVal('joint-maintenanceFund');
+
+      const u = state.outgoings.joint.utilities;
+      u.gasElectricity = numVal('joint-gasElectricity');
+      u.water = numVal('joint-water');
+      u.phoneInternet = numVal('joint-phoneInternet');
+
+      state.outgoings.joint.groceries = numVal('joint-groceries');
+      state.outgoings.joint.holidaySavings = numVal('joint-holidaySavings');
+
+      ['cameron', 'lucy'].forEach(person => {
+        const p = state.outgoings[person];
+        p.carFinance = numVal(person + '-carFinance');
+        p.carFuel = numVal(person + '-carFuel');
+        p.carInsurance = numVal(person + '-carInsurance');
+        p.haircuts = numVal(person + '-haircuts');
+        p.clothingCare = numVal(person + '-clothingCare');
+        p.subscriptions = numVal(person + '-subscriptions');
+        p.eatingOut = numVal(person + '-eatingOut');
+        p.other = numVal(person + '-other');
+      });
+
+      state.mortgage.lender = document.getElementById('mortgage-lender').value;
+      state.mortgage.currentBalance = numVal('mortgage-currentBalance');
+      state.mortgage.termRemainingYears = numVal('mortgage-termRemainingYears');
+
+      state.mortgage.parts[0].rate = numVal('part1-rate');
+      state.mortgage.parts[0].fixedUntil = document.getElementById('part1-fixedUntil').value;
+      state.mortgage.parts[0].payment = numVal('part1-payment');
+
+      state.mortgage.parts[1].rate = numVal('part2-rate');
+      state.mortgage.parts[1].fixedUntil = document.getElementById('part2-fixedUntil').value;
+      state.mortgage.parts[1].payment = numVal('part2-payment');
+
+      const r = state.mortgage.remortgage;
+      r.yearsUntil = numVal('remortgage-yearsUntil');
+      r.targetValuation = numVal('remortgage-targetValuation');
+      r.projectedBalance = numVal('remortgage-projectedBalance');
+      r.newTermYears = numVal('remortgage-newTermYears');
+    }
+
+    function numVal(id) {
+      const el = document.getElementById(id);
+      return Math.max(0, parseFloat(el.value) || 0);
+    }
+
+    async function onFieldChange() {
+      captureForm();
+      const who = localStorage.getItem('whoAmI') || '';
+      setSyncStatus('syncing', 'Saving…');
+
+      const payload = {
+        income: state.income,
+        outgoings: state.outgoings,
+        mortgage: state.mortgage,
+        transactions: state.transactions
+      };
+
+      const { data: rows, error } = await db.rpc('save_finance_data', {
+        new_data: payload,
+        expected_version: loadedVersion,
+        who: who
+      });
+
+      if (error) { onError(error); return; }
+      const result = rows[0];
+
+      if (result.success) {
+        applyRow({ data: payload, version: result.out_version, updated_at: result.out_updated_at, updated_by: result.out_updated_by });
+        document.getElementById('conflictBanner').style.display = 'none';
+        render();
+        setSyncStatus('synced', 'Synced');
+      } else {
+        applyRow({ data: result.out_data, version: result.out_version, updated_at: result.out_updated_at, updated_by: result.out_updated_by });
+        document.getElementById('conflictBanner').style.display = 'block';
+        render();
+        setSyncStatus('synced', 'Synced (conflict resolved)');
+      }
+    }
+
+    function getCouncilTax() {
+      const month = new Date().getMonth() + 1;
+      const winter = month >= 9 || month <= 3;
+      const h = state.outgoings.joint.housing;
+      return winter ? h.councilTaxWinter : h.councilTaxSummer;
+    }
+
+    function getMortgageTotal() {
+      return state.mortgage.parts.reduce((s, p) => s + Number(p.payment || 0), 0);
+    }
+
+    function getHousingTotal() {
+      const h = state.outgoings.joint.housing;
+      return getMortgageTotal() + getCouncilTax() + Number(h.homeContentsInsurance) + Number(h.maintenanceFund);
+    }
+
+    function getUtilitiesTotal() {
+      const u = state.outgoings.joint.utilities;
+      return Number(u.gasElectricity) + Number(u.water) + Number(u.phoneInternet);
+    }
+
+    function getExtrasTotal(bucket) {
+      const extras = state.outgoings[bucket].extras || [];
+      return extras.reduce((s, e) => s + (Number(e.amount) || 0), 0);
+    }
+
+    function getJointTotal() {
+      const j = state.outgoings.joint;
+      return getHousingTotal() + getUtilitiesTotal() + Number(j.groceries) + Number(j.holidaySavings) + getExtrasTotal('joint');
+    }
+
+    function getPersonTotal(person) {
+      const p = state.outgoings[person];
+      return Number(p.carFinance) + Number(p.carFuel) + Number(p.carInsurance) +
+        Number(p.haircuts) + Number(p.clothingCare) + Number(p.subscriptions) + Number(p.eatingOut) + Number(p.other) +
+        getExtrasTotal(person);
+    }
+
+    function getPersonDiscretionary(person) {
+      const p = state.outgoings[person];
+      return Number(p.clothingCare) + Number(p.subscriptions) + Number(p.eatingOut) + Number(p.other);
+    }
+
+    function getDiscretionaryTotal() {
+      return Number(state.outgoings.joint.holidaySavings) + getPersonDiscretionary('cameron') + getPersonDiscretionary('lucy');
+    }
+
+    function getTotalOutgoings() {
+      return getJointTotal() + getPersonTotal('cameron') + getPersonTotal('lucy');
+    }
+
+    function getCombinedIncome() {
+      return Number(state.income.cameron) + Number(state.income.lucy);
+    }
+
+    function fmt(n) {
+      return '£' + Math.round(n).toLocaleString('en-GB');
+    }
+
+    function computeMonthlyPayment(principal, annualRatePct, years) {
+      const r = (annualRatePct / 100) / 12;
+      const n = years * 12;
+      if (r === 0) return principal / n;
+      return principal * r * Math.pow(1 + r, n) / (Math.pow(1 + r, n) - 1);
+    }
+
+    function render() {
+      if (!state) return;
+
+      // Income tab
+      document.getElementById('income-cameron').value = state.income.cameron;
+      document.getElementById('income-lucy').value = state.income.lucy;
+      const combined = getCombinedIncome();
+      document.getElementById('income-combined').textContent = fmt(combined);
+
+      // Joint tab
+      const h = state.outgoings.joint.housing;
+      document.getElementById('joint-councilTaxWinter').value = h.councilTaxWinter;
+      document.getElementById('joint-councilTaxSummer').value = h.councilTaxSummer;
+      document.getElementById('joint-homeContentsInsurance').value = h.homeContentsInsurance;
+      document.getElementById('joint-maintenanceFund').value = h.maintenanceFund;
+      document.getElementById('out-mortgageTotal').textContent = fmt(getMortgageTotal());
+
+      const u = state.outgoings.joint.utilities;
+      document.getElementById('joint-gasElectricity').value = u.gasElectricity;
+      document.getElementById('joint-water').value = u.water;
+      document.getElementById('joint-phoneInternet').value = u.phoneInternet;
+
+      document.getElementById('joint-groceries').value = state.outgoings.joint.groceries;
+      document.getElementById('joint-holidaySavings').value = state.outgoings.joint.holidaySavings;
+      document.getElementById('joint-total').textContent = fmt(getJointTotal());
+
+      // Cameron's / Lucy's tabs
+      ['cameron', 'lucy'].forEach(person => {
+        const p = state.outgoings[person];
+        document.getElementById(person + '-carFinance').value = p.carFinance;
+        document.getElementById(person + '-carFuel').value = p.carFuel;
+        document.getElementById(person + '-carInsurance').value = p.carInsurance;
+        document.getElementById(person + '-haircuts').value = p.haircuts;
+        document.getElementById(person + '-clothingCare').value = p.clothingCare;
+        document.getElementById(person + '-subscriptions').value = p.subscriptions;
+        document.getElementById(person + '-eatingOut').value = p.eatingOut;
+        document.getElementById(person + '-other').value = p.other;
+        document.getElementById(person + '-total').textContent = fmt(getPersonTotal(person));
+      });
+
+      renderExtras('joint');
+      renderExtras('cameron');
+      renderExtras('lucy');
+
+      const totalOutgoings = getTotalOutgoings();
+
+      // Mortgage tab
+      const m = state.mortgage;
+      document.getElementById('mortgage-lender').value = m.lender;
+      document.getElementById('mortgage-currentBalance').value = m.currentBalance;
+      document.getElementById('mortgage-termRemainingYears').value = m.termRemainingYears;
+      document.getElementById('mortgage-totalPayment').textContent = fmt(getMortgageTotal());
+
+      document.getElementById('part1-rate').value = m.parts[0].rate;
+      document.getElementById('part1-fixedUntil').value = m.parts[0].fixedUntil;
+      document.getElementById('part1-payment').value = m.parts[0].payment;
+
+      document.getElementById('part2-rate').value = m.parts[1].rate;
+      document.getElementById('part2-fixedUntil').value = m.parts[1].fixedUntil;
+      document.getElementById('part2-payment').value = m.parts[1].payment;
+
+      const r = m.remortgage;
+      document.getElementById('remortgage-yearsUntil').value = r.yearsUntil;
+      document.getElementById('remortgage-targetValuation').value = r.targetValuation;
+      document.getElementById('remortgage-projectedBalance').value = r.projectedBalance;
+      document.getElementById('remortgage-newTermYears').value = r.newTermYears;
+
+      const ltv = r.targetValuation ? (r.projectedBalance / r.targetValuation * 100) : 0;
+      document.getElementById('mortgage-ltv').textContent = ltv.toFixed(1) + '%';
+
+      const rates = [4.0, 4.5, 5.0, 5.5, 6.0];
+      const rateTableEl = document.getElementById('rateTable');
+      rateTableEl.innerHTML = rates.map(rate => {
+        const payment = computeMonthlyPayment(r.projectedBalance, rate, r.newTermYears);
+        return '<div class="row"><span class="label">' + rate.toFixed(1) + '%</span><span class="amount">' +
+          fmt(payment) + '/month</span></div>';
+      }).join('');
+
+      // Overview tab
+      document.getElementById('ov-income').textContent = fmt(combined);
+      document.getElementById('ov-jointTotal').textContent = fmt(getJointTotal());
+      document.getElementById('ov-cameronTotal').textContent = fmt(getPersonTotal('cameron'));
+      document.getElementById('ov-lucyTotal').textContent = fmt(getPersonTotal('lucy'));
+      document.getElementById('ov-outgoings').textContent = fmt(totalOutgoings);
+      const buffer = combined - totalOutgoings;
+      document.getElementById('ov-buffer').textContent = fmt(buffer);
+
+      // Gauge: 0 -> 0%, 3000+ -> 100%, clamped
+      const gaugePct = Math.max(0, Math.min(1, buffer / 3000)) * 100;
+      document.getElementById('gaugeMarker').style.left = gaugePct + '%';
+
+      const bufferEl = document.getElementById('bufferIndicator');
+      if (buffer > 2000) {
+        bufferEl.className = 'buffer-status good';
+        bufferEl.textContent = 'Strong buffer — healthy financial position';
+      } else if (buffer > 1000) {
+        bufferEl.className = 'buffer-status warn';
+        bufferEl.textContent = 'Moderate buffer — comfortable, keep an eye on discretionary spend';
+      } else {
+        bufferEl.className = 'buffer-status bad';
+        bufferEl.textContent = 'Low buffer — consider reducing discretionary spend';
+      }
+
+      const mortgagePct = combined ? (getMortgageTotal() / combined * 100) : 0;
+      document.getElementById('ov-mortgagePct').textContent = mortgagePct.toFixed(1) + '%';
+      document.getElementById('ov-housing').textContent = fmt(getHousingTotal());
+      const essential = totalOutgoings - getDiscretionaryTotal();
+      const essentialPct = combined ? (essential / combined * 100) : 0;
+      document.getElementById('ov-essentialPct').textContent = Math.round(essentialPct) + '%';
+      document.getElementById('ov-years').textContent = r.yearsUntil;
+      document.getElementById('ov-targetVal').textContent = fmt(r.targetValuation) + ' valuation';
+
+      // Last updated stamp
+      const lastUpdatedEl = document.getElementById('lastUpdated');
+      if (state.updatedAt) {
+        const d2 = new Date(state.updatedAt);
+        const who = state.updatedBy || 'someone';
+        const personClass = who === 'Cameron' ? 'person-cameron' : who === 'Lucy' ? 'person-lucy' : '';
+        lastUpdatedEl.innerHTML = '<span class="stamp ' + personClass + '">' +
+          escapeHtml(who) + ' · ' + d2.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) +
+          '</span>';
+      } else {
+        lastUpdatedEl.innerHTML = '';
+      }
+
+      renderTransactions();
+    }
+
+    function renderExtras(bucket) {
+      const listEl = document.getElementById(bucket + '-extras-list');
+      const extras = state.outgoings[bucket].extras || [];
+      listEl.innerHTML = '';
+
+      if (extras.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'extras-empty';
+        empty.textContent = 'Nothing added yet.';
+        listEl.appendChild(empty);
+        return;
+      }
+
+      extras.forEach((extra, idx) => {
+        const row = document.createElement('div');
+        row.className = 'extra-row';
+
+        const nameInput = document.createElement('input');
+        nameInput.type = 'text';
+        nameInput.placeholder = 'e.g. Gym membership';
+        nameInput.value = extra.name || '';
+        nameInput.setAttribute('aria-label', 'Expense name');
+        nameInput.onchange = () => updateExtra(bucket, idx, 'name', nameInput.value);
+
+        const amountInput = document.createElement('input');
+        amountInput.type = 'number';
+        amountInput.min = '0';
+        amountInput.step = '5';
+        amountInput.value = extra.amount || 0;
+        amountInput.setAttribute('aria-label', 'Amount');
+        amountInput.onchange = () => updateExtra(bucket, idx, 'amount', Math.max(0, parseFloat(amountInput.value) || 0));
+
+        const removeBtn = document.createElement('button');
+        removeBtn.className = 'extra-remove';
+        removeBtn.type = 'button';
+        removeBtn.textContent = '×';
+        removeBtn.setAttribute('aria-label', 'Remove expense');
+        removeBtn.onclick = () => removeExtra(bucket, idx);
+
+        row.appendChild(nameInput);
+        row.appendChild(amountInput);
+        row.appendChild(removeBtn);
+        listEl.appendChild(row);
+      });
+    }
+
+    function addExtra(bucket) {
+      state.outgoings[bucket].extras = state.outgoings[bucket].extras || [];
+      state.outgoings[bucket].extras.push({ name: '', amount: 0 });
+      onFieldChange();
+    }
+
+    function updateExtra(bucket, idx, field, value) {
+      state.outgoings[bucket].extras[idx][field] = value;
+      onFieldChange();
+    }
+
+    function removeExtra(bucket, idx) {
+      state.outgoings[bucket].extras.splice(idx, 1);
+      onFieldChange();
+    }
+
+    function renderTransactions() {
+      const listEl = document.getElementById('recentTransactions');
+      const txns = (state.transactions || []).slice(-20).reverse();
+      if (txns.length === 0) {
+        listEl.innerHTML = '<span class="label">Nothing imported yet — choose a CSV above to add some.</span>';
+        return;
+      }
+      listEl.innerHTML = txns.map(t => (
+        '<div class="transaction-item">' +
+          '<div class="transaction-header">' +
+            '<span class="transaction-desc">' + escapeHtml(t.description) + '</span>' +
+            '<span class="transaction-amount">-£' + Number(t.amount).toFixed(2) + '</span>' +
+          '</div>' +
+          '<div class="transaction-details"><span>' + escapeHtml(t.date) + '</span><span>' + escapeHtml(t.category) + '</span></div>' +
+        '</div>'
+      )).join('');
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str == null ? '' : String(str);
+      return div.innerHTML;
+    }
+
+    function clearTransactions() {
+      if (!confirm('Clear all transaction history? This can’t be undone.')) return;
+      state.transactions = [];
+      onFieldChange();
+    }
+
+    // --- CSV Import ---
+    function handleCSVUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        pendingTransactions = parseCSV(e.target.result);
+        displayImportPreview(pendingTransactions);
+      };
+      reader.readAsText(file);
+    }
+
+    function parseCSV(csv) {
+      const lines = csv.split('\n');
+      const transactions = [];
+      for (let i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        const parts = lines[i].split(',');
+        if (parts.length >= 3) {
+          const date = parts[0].trim();
+          const description = parts[1].trim();
+          const amount = parseFloat(parts[parts.length - 1].replace('£', '').replace(/,/g, ''));
+          if (!isNaN(amount)) {
+            transactions.push({
+              date: date,
+              description: description,
+              amount: Math.abs(amount),
+              category: categorizeTransaction(description),
+              selected: true
+            });
+          }
+        }
+      }
+      return transactions;
+    }
+
+    function categorizeTransaction(description) {
+      const desc = description.toLowerCase();
+      if (desc.includes('mortgage') || desc.includes('accord')) return 'Housing';
+      if (desc.includes('council') || desc.includes('tax')) return 'Housing';
+      if (desc.includes('fuel') || desc.includes('petrol') || desc.includes('shell')) return 'Transport';
+      if (desc.includes('insurance')) return 'Transport';
+      if (desc.includes('electricity') || desc.includes('gas') || desc.includes('water')) return 'Utilities';
+      if (desc.includes('grocery') || desc.includes('tesco') || desc.includes('sainsburys')) return 'Household';
+      if (desc.includes('restaurant') || desc.includes('cafe') || desc.includes('pizza')) return 'Discretionary';
+      return 'Other';
+    }
+
+    function displayImportPreview(transactions) {
+      document.getElementById('importCount').textContent = transactions.length;
+      const listEl = document.getElementById('transactionList');
+      listEl.innerHTML = '';
+      transactions.forEach((t, idx) => {
+        const div = document.createElement('div');
+        div.className = 'transaction-item';
+        div.innerHTML =
+          '<div><label><input type="checkbox" data-idx="' + idx + '" checked onchange="togglePending(' + idx + ')"> Include</label></div>' +
+          '<div class="transaction-header">' +
+            '<span class="transaction-desc">' + escapeHtml(t.description) + '</span>' +
+            '<span class="transaction-amount">-£' + t.amount.toFixed(2) + '</span>' +
+          '</div>' +
+          '<div class="transaction-details"><span>' + escapeHtml(t.date) + '</span><span>' + escapeHtml(t.category) + '</span></div>';
+        listEl.appendChild(div);
+      });
+      document.getElementById('importPreview').style.display = 'block';
+    }
+
+    function togglePending(idx) {
+      pendingTransactions[idx].selected = !pendingTransactions[idx].selected;
+    }
+
+    function applyImport() {
+      const selected = pendingTransactions.filter(t => t.selected);
+      state.transactions = (state.transactions || []).concat(selected).slice(-200);
+      cancelImport();
+      onFieldChange();
+      alert('Imported ' + selected.length + ' transaction' + (selected.length === 1 ? '' : 's') + '.');
+    }
+
+    function cancelImport() {
+      document.getElementById('importPreview').style.display = 'none';
+      document.getElementById('csvFile').value = '';
+      pendingTransactions = [];
+    }
+  </script>
+</body>
+</html>
