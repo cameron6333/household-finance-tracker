@@ -490,6 +490,18 @@
     .act-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
     .act-summary .fig { font-family: var(--mono); font-size: 18px; font-weight: 600; }
     .act-summary .cap { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; }
+    .act-suggest { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px;
+      margin-top: 8px; padding: 7px 9px; border-radius: 7px; background: var(--warn-bg); color: var(--ink); font-size: 12px; }
+    .act-suggest button { border: 1px solid var(--warn); background: var(--card); color: var(--ink); border-radius: 6px;
+      padding: 5px 8px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .act-suggest button:hover { background: var(--paper); }
+    .btn-link { border: 1px solid var(--line); background: var(--paper); color: var(--ink); border-radius: 7px;
+      padding: 9px 12px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 12px; }
+    .monzo-sync { font-size: 12px; color: #C9CDC4; margin-top: 8px; display: flex; align-items: center; gap: 6px; }
+    .monzo-sync .ico { width: 16px; height: 16px; border-radius: 50%; display: inline-grid; place-items: center;
+      font-size: 10px; font-weight: 700; flex-shrink: 0; background: var(--good); color: #fff; }
+    .monzo-sync.warn { color: #F5EBD9; } .monzo-sync.warn .ico { background: #D9A54A; color: var(--ink); }
+    .monzo-sync.bad { color: #F5E3E2; } .monzo-sync.bad .ico { background: #C9605A; }
     .act-empty { font-size: 13px; color: var(--ink-soft); }
     .items-empty { font-size: 12px; color: var(--ink-soft); padding: 4px 0 8px; }
   </style>
@@ -549,6 +561,7 @@
         </select>
       </div>
       <div id="lastUpdated"></div>
+      <div class="monzo-sync" id="monzoSync" style="display:none"></div>
       <div class="conflict-banner" id="conflictBanner">
         Lucy or Cameron saved a change while you were editing. Their latest numbers are now showing — please redo the change you just made.
       </div>
@@ -590,6 +603,12 @@
           </div>
           <div id="bufferIndicator" class="buffer-status good">Loading&hellip;</div>
         </div>
+      </div>
+
+      <div class="section">
+        <h2>Actual vs plan</h2>
+        <div id="ov-actual"><span class="label">Loading&hellip;</span></div>
+        <button class="btn-link" onclick="switchTab('actual')">See full breakdown &rarr;</button>
       </div>
 
       <div class="section">
@@ -1270,6 +1289,7 @@
     // --- Actual vs plan ---
     // Monthly totals per budget line, pushed by Cameron's Monzo sync (monzo_actuals table).
     // Keys look like "joint.utilities.Water"; "__mortgage", "__counciltax" and "__other" are special.
+    // Totals only compare lines Monzo can track, so untrackable lines don't make it look under budget.
     let actuals = null;
 
     async function loadActuals() {
@@ -1286,6 +1306,11 @@
       ['cameron', 'other', "Cameron's · Other"]
     ];
 
+    function thisMonthKey() {
+      const d = new Date();
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    }
+
     function monthLabel(m) {
       return new Date(m + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
     }
@@ -1296,19 +1321,88 @@
       return (month >= 9 || month <= 3) ? h.councilTaxWinter : h.councilTaxSummer;
     }
 
-    function actRow(name, sub, planned, actual, tracked) {
-      const hasPlan = planned > 0;
-      const over = tracked && hasPlan && actual > planned * 1.1 + 1;
-      const pct = hasPlan ? Math.min(100, actual / planned * 100) : 0;
+    function signedFmt(n) { return (n < 0 ? '−' : '') + fmt(Math.abs(n)); }
+
+    // Plan vs actual for every line in a month.
+    function buildActuals(m) {
+      const d = actuals.months[m] || { lines: {}, unbudgeted: 0, cardBills: 0 };
+      const tracked = new Set(actuals.trackedLines || []);
+      const val = key => (d.lines[key] || 0) / 100;
+      let plan = 0, actual = 0;
+      const sections = ACT_SECTIONS.map(([bucket, section, title]) => {
+        const prefix = bucket + '.' + section + '.';
+        const rows = [];
+        const add = (name, sub, planned, key, isTracked) => rows.push({ name, sub, planned, actual: val(key), tracked: isTracked, key });
+        if (bucket === 'joint' && section === 'housing') {
+          add('Mortgage', '', getMortgageTotal(), prefix + '__mortgage', tracked.has(prefix + '__mortgage'));
+          add('Council tax', '', Number(councilTaxFor(m)) || 0, prefix + '__counciltax', tracked.has(prefix + '__counciltax'));
+        }
+        const items = (state.outgoings[bucket][section] && state.outgoings[bucket][section].items) || [];
+        const names = new Set();
+        items.forEach(item => {
+          names.add(item.name);
+          add(item.name || '(unnamed)', '', Number(item.amount) || 0, prefix + item.name, tracked.has(prefix + item.name));
+        });
+        Object.keys(d.lines).filter(k => k.startsWith(prefix) && !k.slice(prefix.length).startsWith('__') && !names.has(k.slice(prefix.length)))
+          .forEach(k => add(k.slice(prefix.length), 'not in plan', 0, k, true));
+        if (val(prefix + '__other') > 0) add('Other spending', 'not matched to a line above', 0, prefix + '__other', true);
+        const sp = rows.reduce((t, r) => t + (r.tracked ? r.planned : 0), 0);
+        const sa = rows.reduce((t, r) => t + (r.tracked ? r.actual : 0), 0);
+        plan += sp; actual += sa;
+        return { title, rows, plan: sp, actual: sa };
+      });
+      return { d, sections, plan, actual };
+    }
+
+    // Bill lines (matched by payee) whose last 3 full months consistently differ from the plan.
+    function planSuggestions() {
+      const out = {};
+      if (!actuals || !actuals.months || !state) return out;
+      const kinds = actuals.lineKinds || {};
+      const full = Object.keys(actuals.months).sort().filter(m => m < thisMonthKey()).slice(-3);
+      if (full.length < 3) return out;
+      Object.keys(SECTIONS).forEach(bucket => SECTIONS[bucket].forEach(section => {
+        const items = (state.outgoings[bucket][section] && state.outgoings[bucket][section].items) || [];
+        items.forEach((item, idx) => {
+          const key = bucket + '.' + section + '.' + item.name;
+          if (kinds[key] !== 'payee') return;
+          const vals = full.map(m => (actuals.months[m].lines[key] || 0) / 100);
+          if (vals.some(v => v <= 0)) return;
+          const typical = Math.round(vals.slice().sort((a, b) => a - b)[1]);
+          const planned = Number(item.amount) || 0;
+          if (Math.abs(typical - planned) > Math.max(5, planned * 0.1)) {
+            out[key] = { typical, planned, name: item.name, bucket, section, idx };
+          }
+        });
+      }));
+      return out;
+    }
+
+    function applySuggestion(key) {
+      const sg = planSuggestions()[key];
+      if (!sg) return;
+      if (!confirm('Change "' + sg.name + '" in the plan from ' + fmt(sg.planned) + ' to ' + fmt(sg.typical) + '?')) return;
+      updateItem(sg.bucket, sg.section, sg.idx, 'amount', sg.typical);
+    }
+
+    function actRow(r, suggestion) {
+      const hasPlan = r.planned > 0;
+      const over = r.tracked && hasPlan && r.actual > r.planned * 1.1 + 1;
+      const pct = hasPlan ? Math.max(0, Math.min(100, r.actual / r.planned * 100)) : 0;
       return '<div class="act-row act-cols">' +
-        '<span class="name">' + escapeHtml(name) + (sub ? '<span class="sub">' + escapeHtml(sub) + '</span>' : '') + '</span>' +
-        '<span class="num muted">' + (hasPlan ? fmt(planned) : '–') + '</span>' +
-        '<span class="num' + (over ? ' over' : '') + (tracked ? '' : ' muted') + '">' + (tracked ? (actual < 0 ? '−' : '') + fmt(Math.abs(actual)) : 'n/a') + '</span>' +
-        (tracked && hasPlan ? '<div class="act-bar"><i class="' + (over ? 'over' : '') + '" style="width:' + pct.toFixed(0) + '%"></i></div>' : '') +
+        '<span class="name">' + escapeHtml(r.name) + (r.sub ? '<span class="sub">' + escapeHtml(r.sub) + '</span>' : '') +
+          (!r.tracked && hasPlan ? '<span class="sub">not tracked from Monzo</span>' : '') + '</span>' +
+        '<span class="num muted">' + (hasPlan ? fmt(r.planned) : '–') + '</span>' +
+        '<span class="num' + (over ? ' over' : '') + (r.tracked ? '' : ' muted') + '">' + (r.tracked ? signedFmt(r.actual) : 'n/a') + '</span>' +
+        (r.tracked && hasPlan ? '<div class="act-bar"><i class="' + (over ? 'over' : '') + '" style="width:' + pct.toFixed(0) + '%"></i></div>' : '') +
+        (suggestion ? '<div class="act-suggest"><span>Usually about <b>' + fmt(suggestion.typical) + '</b> over the last 3 months</span>' +
+          '<button type="button" data-key="' + escapeHtml(r.key) + '" onclick="applySuggestion(this.dataset.key)">Set plan to ' + fmt(suggestion.typical) + '</button></div>' : '') +
         '</div>';
     }
 
     function renderActuals() {
+      renderMonzoSync();
+      renderOverviewActuals();
       const meta = document.getElementById('act-meta');
       const sel = document.getElementById('act-month');
       const sectionsEl = document.getElementById('act-sections');
@@ -1319,61 +1413,79 @@
         return;
       }
       const months = Object.keys(actuals.months).sort().reverse();
-      const thisMonth = new Date().toISOString().slice(0, 7);
-      if (!sel.options.length || sel.options.length !== months.length) {
+      if (sel.options.length !== months.length) {
         const keep = sel.value;
-        sel.innerHTML = months.map(m => '<option value="' + m + '">' + monthLabel(m) + (m === thisMonth ? ' (so far)' : '') + '</option>').join('');
+        sel.innerHTML = months.map(m => '<option value="' + m + '">' + monthLabel(m) + (m === thisMonthKey() ? ' (so far)' : '') + '</option>').join('');
         sel.value = keep && months.includes(keep) ? keep : (months[1] || months[0]);
       }
       const m = sel.value;
-      const d = actuals.months[m] || { lines: {}, unbudgeted: 0, cardBills: 0 };
-      const tracked = new Set(actuals.trackedLines || []);
       const synced = actuals.lastSync ? new Date(actuals.lastSync).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'unknown';
       meta.innerHTML = 'From Monzo: ' + escapeHtml(actuals.coverage || '') + '. Last synced ' + escapeHtml(synced) +
-        '. Lucy\'s personal spending isn\'t included. Groceries and other spending on Amex only show up as the Amex bill payment (bottom of the page).';
+        '. Totals only include lines Monzo can track. Lucy\'s personal spending isn\'t included, and spending on Amex only shows up as the Amex bill payment.';
 
-      const val = key => (d.lines[key] || 0) / 100;
-      let planTotal = 0, actualTotal = 0;
-      sectionsEl.innerHTML = ACT_SECTIONS.map(([bucket, section, title]) => {
-        const prefix = bucket + '.' + section + '.';
-        const rows = [];
-        let sp = 0, sa = 0;
-        const push = (name, sub, planned, key, isTracked) => {
-          const a = val(key);
-          rows.push(actRow(name, sub, planned, a, isTracked));
-          sp += planned; sa += a;
-        };
-        if (bucket === 'joint' && section === 'housing') {
-          push('Mortgage', '', getMortgageTotal(), prefix + '__mortgage', tracked.has(prefix + '__mortgage'));
-          push('Council tax', '', Number(councilTaxFor(m)) || 0, prefix + '__counciltax', tracked.has(prefix + '__counciltax'));
-        }
-        const items = (state.outgoings[bucket][section] && state.outgoings[bucket][section].items) || [];
-        const names = new Set();
-        items.forEach(item => {
-          names.add(item.name);
-          push(item.name || '(unnamed)', '', Number(item.amount) || 0, prefix + item.name, tracked.has(prefix + item.name));
-        });
-        // Actuals for lines that were renamed/removed in the plan
-        Object.keys(d.lines).filter(k => k.startsWith(prefix) && !k.slice(prefix.length).startsWith('__') && !names.has(k.slice(prefix.length)))
-          .forEach(k => push(k.slice(prefix.length), 'not in plan', 0, k, true));
-        if (val(prefix + '__other') > 0) push('Other spending', 'not matched to a line above', 0, prefix + '__other', true);
-        planTotal += sp; actualTotal += sa;
-        const over = sa > sp * 1.1 + 1;
-        return '<div class="section"><h2>' + escapeHtml(title) + '</h2>' +
-          '<div class="act-cols act-head"><span></span><span>Plan</span><span>Actual</span></div>' + rows.join('') +
-          '<div class="act-cols act-total"><span class="name">Total</span><span class="num">' + fmt(sp) + '</span><span class="num' + (over ? ' over' : '') + '">' + fmt(sa) + '</span></div></div>';
+      const b = buildActuals(m);
+      const sugg = planSuggestions();
+      sectionsEl.innerHTML = b.sections.map(sec => {
+        const over = sec.actual > sec.plan * 1.1 + 1;
+        return '<div class="section"><h2>' + escapeHtml(sec.title) + '</h2>' +
+          '<div class="act-cols act-head"><span></span><span>Plan</span><span>Actual</span></div>' +
+          sec.rows.map(r => actRow(r, sugg[r.key])).join('') +
+          '<div class="act-cols act-total"><span class="name">Total</span><span class="num">' + fmt(sec.plan) + '</span><span class="num' + (over ? ' over' : '') + '">' + signedFmt(sec.actual) + '</span></div></div>';
       }).join('') +
         '<div class="section"><h2>Not in the plan</h2>' +
         '<div class="act-cols act-head"><span></span><span></span><span>Amount</span></div>' +
-        '<div class="act-row act-cols"><span class="name">One-offs &amp; unbudgeted<span class="sub">e.g. home improvements, trades, holidays, anything not matched</span></span><span></span><span class="num">' + fmt(d.unbudgeted / 100) + '</span></div>' +
-        '<div class="act-row act-cols"><span class="name">Amex bill payments<span class="sub">spending on the card isn\'t broken down</span></span><span></span><span class="num">' + fmt(d.cardBills / 100) + '</span></div>' +
+        '<div class="act-row act-cols"><span class="name">One-offs &amp; unbudgeted<span class="sub">e.g. home improvements, trades, holidays, anything not matched</span></span><span></span><span class="num">' + fmt(b.d.unbudgeted / 100) + '</span></div>' +
+        '<div class="act-row act-cols"><span class="name">Amex bill payments<span class="sub">spending on the card isn\'t broken down</span></span><span></span><span class="num">' + fmt(b.d.cardBills / 100) + '</span></div>' +
         '</div>';
 
-      const diff = actualTotal - planTotal;
+      const diff = b.actual - b.plan;
       document.getElementById('act-summary').innerHTML =
-        '<div><div class="fig">' + fmt(planTotal) + '</div><div class="cap">Planned</div></div>' +
-        '<div><div class="fig">' + fmt(actualTotal) + '</div><div class="cap">Actual</div></div>' +
+        '<div><div class="fig">' + fmt(b.plan) + '</div><div class="cap">Planned</div></div>' +
+        '<div><div class="fig">' + fmt(b.actual) + '</div><div class="cap">Actual</div></div>' +
         '<div><div class="fig" style="color:' + (diff > 0 ? 'var(--bad)' : 'var(--good)') + '">' + (diff > 0 ? '+' : '−') + fmt(Math.abs(diff)) + '</div><div class="cap">' + (diff > 0 ? 'Over' : 'Under') + '</div></div>';
+    }
+
+    function renderOverviewActuals() {
+      const el = document.getElementById('ov-actual');
+      if (!el || !state) return;
+      if (!actuals || !actuals.months) {
+        el.innerHTML = '<span class="label">No Monzo data yet.</span>';
+        return;
+      }
+      const cur = thisMonthKey();
+      const last = Object.keys(actuals.months).sort().filter(m => m < cur).pop();
+      const row = (label, value, style) => '<div class="row"><span class="label">' + label + '</span><span class="amount"' + (style ? ' style="' + style + '"' : '') + '>' + value + '</span></div>';
+      let html = '';
+      if (last) {
+        const b = buildActuals(last);
+        const diff = b.actual - b.plan;
+        html += row(escapeHtml(monthLabel(last)) + ' &mdash; planned', fmt(b.plan)) +
+          row('Actually spent', fmt(b.actual)) +
+          row(diff > 0 ? 'Over plan' : 'Under plan', fmt(Math.abs(diff)), 'color:' + (diff > 0 ? 'var(--bad)' : 'var(--good)')) +
+          row('One-offs &amp; unbudgeted (not in plan)', fmt(b.d.unbudgeted / 100));
+      }
+      if (actuals.months[cur]) {
+        const b = buildActuals(cur);
+        html += row('This month so far', fmt(b.actual) + ' <span style="color:var(--ink-soft);font-weight:400">of ' + fmt(b.plan) + '</span>');
+      }
+      const n = Object.keys(planSuggestions()).length;
+      if (n) html += '<div class="act-suggest" style="margin-top:10px"><span><b>' + n + '</b> plan line' + (n > 1 ? 's look' : ' looks') +
+        ' out of date compared with your real bills.</span><button type="button" onclick="switchTab(\'actual\')">Review</button></div>';
+      el.innerHTML = html;
+    }
+
+    function renderMonzoSync() {
+      const el = document.getElementById('monzoSync');
+      if (!el) return;
+      if (!actuals || !actuals.lastSync) { el.style.display = 'none'; return; }
+      const hours = (Date.now() - new Date(actuals.lastSync)) / 36e5;
+      const ago = hours < 1 ? 'under an hour ago' : hours < 48 ? Math.round(hours) + 'h ago' : Math.round(hours / 24) + ' days ago';
+      let cls = '', icon = '✓', text = 'Monzo synced ' + ago;
+      if (hours > 24 * 7) { cls = 'bad'; icon = '!'; text = 'Monzo data is ' + ago.replace(' ago', '') + ' old — Cameron\'s Mac hasn\'t synced'; }
+      else if (hours > 48) { cls = 'warn'; icon = '!'; text = 'Monzo last synced ' + ago + ' — check Cameron\'s Mac'; }
+      el.className = 'monzo-sync' + (cls ? ' ' + cls : '');
+      el.innerHTML = '<span class="ico" aria-hidden="true">' + icon + '</span><span>' + escapeHtml(text) + '</span>';
+      el.style.display = 'flex';
     }
 
     // --- CSV Import ---
