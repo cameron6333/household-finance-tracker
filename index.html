@@ -503,6 +503,12 @@
     .monzo-sync.warn { color: #F5EBD9; } .monzo-sync.warn .ico { background: #D9A54A; color: var(--ink); }
     .monzo-sync.bad { color: #F5E3E2; } .monzo-sync.bad .ico { background: #C9605A; }
     .act-empty { font-size: 13px; color: var(--ink-soft); }
+    .section h2.section-title { display: flex; align-items: center; gap: 6px; }
+    .title-input { font: inherit; color: var(--ink); background: transparent; border: 1px solid transparent;
+      border-radius: 6px; padding: 2px 6px; margin-left: -7px; flex: 1; min-width: 0; cursor: text; }
+    .title-input:hover { border-color: var(--line); }
+    .title-input:focus { outline: none; border-color: var(--ink); background: var(--card); box-shadow: 0 0 0 3px rgba(31, 42, 36, 0.1); }
+    .title-hint { color: var(--ink-soft); font-size: 13px; font-family: var(--sans); font-weight: 400; pointer-events: none; }
     .items-empty { font-size: 12px; color: var(--ink-soft); padding: 4px 0 8px; }
   </style>
 </head>
@@ -639,7 +645,7 @@
     <!-- JOINT -->
     <div id="joint" class="tab-content">
       <div class="section">
-        <h2>Housing</h2>
+        <h2 class="section-title"><input type="text" class="title-input" id="title-joint-housing" data-default="Housing" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('joint','housing',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div class="row"><span class="label">Mortgage (see Mortgage tab)</span><span class="amount" id="out-mortgageTotal">-</span></div>
         <div class="row">
           <label class="label" for="joint-councilTaxWinter">Council tax (Sep&ndash;Mar)</label>
@@ -650,25 +656,25 @@
           <input type="number" min="0" id="joint-councilTaxSummer" step="5" onchange="onFieldChange()">
         </div>
         <div id="joint-housing-items"></div>
-        <button class="btn-add-item" onclick="addItem('joint','housing')">+ Add to Housing</button>
+        <button class="btn-add-item" id="add-joint-housing" onclick="addItem('joint','housing')">+ Add to Housing</button>
       </div>
 
       <div class="section">
-        <h2>Utilities</h2>
+        <h2 class="section-title"><input type="text" class="title-input" id="title-joint-utilities" data-default="Utilities" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('joint','utilities',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="joint-utilities-items"></div>
-        <button class="btn-add-item" onclick="addItem('joint','utilities')">+ Add to Utilities</button>
+        <button class="btn-add-item" id="add-joint-utilities" onclick="addItem('joint','utilities')">+ Add to Utilities</button>
       </div>
 
       <div class="section">
-        <h2>Household</h2>
+        <h2 class="section-title"><input type="text" class="title-input" id="title-joint-household" data-default="Household" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('joint','household',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="joint-household-items"></div>
-        <button class="btn-add-item" onclick="addItem('joint','household')">+ Add to Household</button>
+        <button class="btn-add-item" id="add-joint-household" onclick="addItem('joint','household')">+ Add to Household</button>
       </div>
 
       <div class="section">
-        <h2>Other</h2>
+        <h2 class="section-title"><input type="text" class="title-input" id="title-joint-other" data-default="Other" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('joint','other',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="joint-other-items"></div>
-        <button class="btn-add-item" onclick="addItem('joint','other')">+ Add to Other</button>
+        <button class="btn-add-item" id="add-joint-other" onclick="addItem('joint','other')">+ Add to Other</button>
       </div>
 
       <div class="section">
@@ -680,21 +686,21 @@
     <!-- CAMERON'S -->
     <div id="cameron" class="tab-content">
       <div class="section">
-        <h2>Transport</h2>
+        <h2 class="section-title"><input type="text" class="title-input" id="title-cameron-transport" data-default="Transport" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('cameron','transport',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="cameron-transport-items"></div>
-        <button class="btn-add-item" onclick="addItem('cameron','transport')">+ Add to Transport</button>
+        <button class="btn-add-item" id="add-cameron-transport" onclick="addItem('cameron','transport')">+ Add to Transport</button>
       </div>
 
       <div class="section">
-        <h2>Personal</h2>
+        <h2 class="section-title"><input type="text" class="title-input" id="title-cameron-personal" data-default="Personal" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('cameron','personal',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="cameron-personal-items"></div>
-        <button class="btn-add-item" onclick="addItem('cameron','personal')">+ Add to Personal</button>
+        <button class="btn-add-item" id="add-cameron-personal" onclick="addItem('cameron','personal')">+ Add to Personal</button>
       </div>
 
       <div class="section">
-        <h2>Other</h2>
+        <h2 class="section-title"><input type="text" class="title-input" id="title-cameron-other" data-default="Other" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('cameron','other',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="cameron-other-items"></div>
-        <button class="btn-add-item" onclick="addItem('cameron','other')">+ Add to Other</button>
+        <button class="btn-add-item" id="add-cameron-other" onclick="addItem('cameron','other')">+ Add to Other</button>
       </div>
 
       <div class="section">
@@ -706,21 +712,21 @@
     <!-- LUCY'S -->
     <div id="lucy" class="tab-content">
       <div class="section">
-        <h2>Transport</h2>
+        <h2 class="section-title"><input type="text" class="title-input" id="title-lucy-transport" data-default="Transport" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('lucy','transport',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="lucy-transport-items"></div>
-        <button class="btn-add-item" onclick="addItem('lucy','transport')">+ Add to Transport</button>
+        <button class="btn-add-item" id="add-lucy-transport" onclick="addItem('lucy','transport')">+ Add to Transport</button>
       </div>
 
       <div class="section">
-        <h2>Personal</h2>
+        <h2 class="section-title"><input type="text" class="title-input" id="title-lucy-personal" data-default="Personal" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('lucy','personal',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="lucy-personal-items"></div>
-        <button class="btn-add-item" onclick="addItem('lucy','personal')">+ Add to Personal</button>
+        <button class="btn-add-item" id="add-lucy-personal" onclick="addItem('lucy','personal')">+ Add to Personal</button>
       </div>
 
       <div class="section">
-        <h2>Other</h2>
+        <h2 class="section-title"><input type="text" class="title-input" id="title-lucy-other" data-default="Other" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('lucy','other',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="lucy-other-items"></div>
-        <button class="btn-add-item" onclick="addItem('lucy','other')">+ Add to Other</button>
+        <button class="btn-add-item" id="add-lucy-other" onclick="addItem('lucy','other')">+ Add to Other</button>
       </div>
 
       <div class="section">
@@ -1093,6 +1099,8 @@
       document.getElementById('out-mortgageTotal').textContent = fmt(getMortgageTotal());
       document.getElementById('joint-total').textContent = fmt(getJointTotal());
 
+      renderSectionTitles();
+
       // Every section (Joint's Housing/Utilities/Household/Other, each
       // person's Transport/Personal/Other) renders the same editable list.
       Object.keys(SECTIONS).forEach(bucket => {
@@ -1187,6 +1195,33 @@
 
       renderTransactions();
       renderActuals();
+    }
+
+    // Section names are editable; the custom name is stored as outgoings[bucket][section].title.
+    // The underlying key (e.g. "transport") never changes, so totals and Monzo mapping keep working.
+    function sectionTitle(bucket, section) {
+      const sec = state && state.outgoings[bucket] && state.outgoings[bucket][section];
+      const el = document.getElementById('title-' + bucket + '-' + section);
+      return (sec && sec.title) || (el && el.dataset.default) || section;
+    }
+
+    function renameSection(bucket, section, value) {
+      const name = String(value || '').trim();
+      const sec = state.outgoings[bucket][section];
+      if (name && name !== document.getElementById('title-' + bucket + '-' + section).dataset.default) sec.title = name;
+      else delete sec.title;
+      onFieldChange();
+    }
+
+    function renderSectionTitles() {
+      Object.keys(SECTIONS).forEach(bucket => SECTIONS[bucket].forEach(section => {
+        const input = document.getElementById('title-' + bucket + '-' + section);
+        if (!input) return;
+        const title = sectionTitle(bucket, section);
+        if (document.activeElement !== input) input.value = title;
+        const btn = document.getElementById('add-' + bucket + '-' + section);
+        if (btn) btn.textContent = '+ Add to ' + title;
+      }));
     }
 
     // Generic renderer for every editable outgoings section: a list of
@@ -1349,7 +1384,7 @@
         const sp = rows.reduce((t, r) => t + (r.tracked ? r.planned : 0), 0);
         const sa = rows.reduce((t, r) => t + (r.tracked ? r.actual : 0), 0);
         plan += sp; actual += sa;
-        return { title, rows, plan: sp, actual: sa };
+        return { title: title.split(' · ')[0] + ' · ' + sectionTitle(bucket, section), rows, plan: sp, actual: sa };
       });
       return { d, sections, plan, actual };
     }
