@@ -468,6 +468,29 @@
       cursor: pointer;
     }
     .item-remove:hover { opacity: 0.8; }
+
+    /* Actual vs plan */
+    .act-meta { font-size: 12px; color: var(--ink-soft); margin-bottom: 12px; line-height: 1.5; }
+    .act-month { padding: 8px 10px; border: 1px solid #C7C9BB; border-radius: 7px; background: var(--card); color: var(--ink); font-size: 13px; }
+    .act-cols { display: grid; grid-template-columns: 1fr 76px 76px; gap: 8px; align-items: baseline; }
+    .act-head { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-soft); padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+    .act-head span:not(:first-child), .act-row .num { text-align: right; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+    .act-row { padding: 9px 0 8px; border-bottom: 1px solid var(--line); }
+    .act-row:last-child { border-bottom: none; }
+    .act-row .name { font-size: 13px; color: var(--ink); }
+    .act-row .sub { display: block; font-size: 11px; color: var(--ink-soft); }
+    .act-row .num { font-size: 13px; }
+    .act-row .num.muted { color: var(--ink-soft); }
+    .act-cols .num.over { color: var(--bad); font-weight: 600; }
+    .act-bar { grid-column: 1 / -1; height: 4px; background: var(--paper); border-radius: 2px; overflow: hidden; margin-top: 6px; }
+    .act-bar i { display: block; height: 100%; background: var(--good); border-radius: 0 2px 2px 0; }
+    .act-bar i.over { background: var(--bad); }
+    .act-total { font-weight: 600; background: var(--paper); border-radius: 8px; padding: 10px 8px; margin: 6px -8px 0; }
+    .act-total .name { font-weight: 600; }
+    .act-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; }
+    .act-summary .fig { font-family: var(--mono); font-size: 18px; font-weight: 600; }
+    .act-summary .cap { font-size: 11px; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.05em; }
+    .act-empty { font-size: 13px; color: var(--ink-soft); }
     .items-empty { font-size: 12px; color: var(--ink-soft); padding: 4px 0 8px; }
   </style>
 </head>
@@ -537,6 +560,7 @@
       <button class="tab" data-tab="joint" onclick="switchTab('joint')">Joint</button>
       <button class="tab" data-tab="cameron" onclick="switchTab('cameron')">Cameron's</button>
       <button class="tab" data-tab="lucy" onclick="switchTab('lucy')">Lucy's</button>
+      <button class="tab" data-tab="actual" onclick="switchTab('actual')">Actual</button>
       <button class="tab" data-tab="mortgage" onclick="switchTab('mortgage')">Mortgage</button>
       <button class="tab" data-tab="import" onclick="switchTab('import')">Import CSV</button>
     </div>
@@ -684,6 +708,20 @@
         <h2>Lucy's total</h2>
         <div class="row total"><span class="label">Total Lucy's outgoings</span><span class="amount" id="lucy-total">-</span></div>
       </div>
+    </div>
+
+    <!-- ACTUAL VS PLAN (monthly totals pushed from Cameron's Monzo sync) -->
+    <div id="actual" class="tab-content">
+      <div class="section">
+        <h2>Actual vs plan</h2>
+        <div class="act-meta" id="act-meta">Loading&hellip;</div>
+        <div class="row">
+          <label class="label" for="act-month">Month</label>
+          <select class="act-month" id="act-month" onchange="renderActuals()"></select>
+        </div>
+        <div class="act-summary" id="act-summary" style="margin-top:12px"></div>
+      </div>
+      <div id="act-sections"></div>
     </div>
 
     <!-- MORTGAGE -->
@@ -887,6 +925,7 @@
       applyRow(row);
       render();
       setSyncStatus('synced', 'Synced');
+      loadActuals();
     }
 
     function onError(err) {
@@ -1128,6 +1167,7 @@
       }
 
       renderTransactions();
+      renderActuals();
     }
 
     // Generic renderer for every editable outgoings section: a list of
@@ -1224,6 +1264,116 @@
       if (!confirm('Clear all transaction history? This can’t be undone.')) return;
       state.transactions = [];
       onFieldChange();
+    }
+
+
+    // --- Actual vs plan ---
+    // Monthly totals per budget line, pushed by Cameron's Monzo sync (monzo_actuals table).
+    // Keys look like "joint.utilities.Water"; "__mortgage", "__counciltax" and "__other" are special.
+    let actuals = null;
+
+    async function loadActuals() {
+      const { data, error } = await db.from('monzo_actuals').select('data, updated_at').eq('id', 'default').maybeSingle();
+      if (error) { console.log(error); return; }
+      actuals = data ? data.data : null;
+      renderActuals();
+    }
+
+    const ACT_SECTIONS = [
+      ['joint', 'housing', 'Joint · Housing'], ['joint', 'utilities', 'Joint · Utilities'],
+      ['joint', 'household', 'Joint · Household'], ['joint', 'other', 'Joint · Other'],
+      ['cameron', 'transport', "Cameron's · Transport"], ['cameron', 'personal', "Cameron's · Personal"],
+      ['cameron', 'other', "Cameron's · Other"]
+    ];
+
+    function monthLabel(m) {
+      return new Date(m + '-01T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
+    }
+
+    function councilTaxFor(m) {
+      const month = Number(m.slice(5, 7));
+      const h = state.outgoings.joint.housing;
+      return (month >= 9 || month <= 3) ? h.councilTaxWinter : h.councilTaxSummer;
+    }
+
+    function actRow(name, sub, planned, actual, tracked) {
+      const hasPlan = planned > 0;
+      const over = tracked && hasPlan && actual > planned * 1.1 + 1;
+      const pct = hasPlan ? Math.min(100, actual / planned * 100) : 0;
+      return '<div class="act-row act-cols">' +
+        '<span class="name">' + escapeHtml(name) + (sub ? '<span class="sub">' + escapeHtml(sub) + '</span>' : '') + '</span>' +
+        '<span class="num muted">' + (hasPlan ? fmt(planned) : '–') + '</span>' +
+        '<span class="num' + (over ? ' over' : '') + (tracked ? '' : ' muted') + '">' + (tracked ? (actual < 0 ? '−' : '') + fmt(Math.abs(actual)) : 'n/a') + '</span>' +
+        (tracked && hasPlan ? '<div class="act-bar"><i class="' + (over ? 'over' : '') + '" style="width:' + pct.toFixed(0) + '%"></i></div>' : '') +
+        '</div>';
+    }
+
+    function renderActuals() {
+      const meta = document.getElementById('act-meta');
+      const sel = document.getElementById('act-month');
+      const sectionsEl = document.getElementById('act-sections');
+      if (!meta || !state) return;
+      if (!actuals || !actuals.months) {
+        meta.textContent = 'No Monzo data yet. It appears here after Cameron\'s Monzo sync runs.';
+        sectionsEl.innerHTML = '';
+        return;
+      }
+      const months = Object.keys(actuals.months).sort().reverse();
+      const thisMonth = new Date().toISOString().slice(0, 7);
+      if (!sel.options.length || sel.options.length !== months.length) {
+        const keep = sel.value;
+        sel.innerHTML = months.map(m => '<option value="' + m + '">' + monthLabel(m) + (m === thisMonth ? ' (so far)' : '') + '</option>').join('');
+        sel.value = keep && months.includes(keep) ? keep : (months[1] || months[0]);
+      }
+      const m = sel.value;
+      const d = actuals.months[m] || { lines: {}, unbudgeted: 0, cardBills: 0 };
+      const tracked = new Set(actuals.trackedLines || []);
+      const synced = actuals.lastSync ? new Date(actuals.lastSync).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'unknown';
+      meta.innerHTML = 'From Monzo: ' + escapeHtml(actuals.coverage || '') + '. Last synced ' + escapeHtml(synced) +
+        '. Lucy\'s personal spending isn\'t included. Groceries and other spending on Amex only show up as the Amex bill payment (bottom of the page).';
+
+      const val = key => (d.lines[key] || 0) / 100;
+      let planTotal = 0, actualTotal = 0;
+      sectionsEl.innerHTML = ACT_SECTIONS.map(([bucket, section, title]) => {
+        const prefix = bucket + '.' + section + '.';
+        const rows = [];
+        let sp = 0, sa = 0;
+        const push = (name, sub, planned, key, isTracked) => {
+          const a = val(key);
+          rows.push(actRow(name, sub, planned, a, isTracked));
+          sp += planned; sa += a;
+        };
+        if (bucket === 'joint' && section === 'housing') {
+          push('Mortgage', '', getMortgageTotal(), prefix + '__mortgage', tracked.has(prefix + '__mortgage'));
+          push('Council tax', '', Number(councilTaxFor(m)) || 0, prefix + '__counciltax', tracked.has(prefix + '__counciltax'));
+        }
+        const items = (state.outgoings[bucket][section] && state.outgoings[bucket][section].items) || [];
+        const names = new Set();
+        items.forEach(item => {
+          names.add(item.name);
+          push(item.name || '(unnamed)', '', Number(item.amount) || 0, prefix + item.name, tracked.has(prefix + item.name));
+        });
+        // Actuals for lines that were renamed/removed in the plan
+        Object.keys(d.lines).filter(k => k.startsWith(prefix) && !k.slice(prefix.length).startsWith('__') && !names.has(k.slice(prefix.length)))
+          .forEach(k => push(k.slice(prefix.length), 'not in plan', 0, k, true));
+        if (val(prefix + '__other') > 0) push('Other spending', 'not matched to a line above', 0, prefix + '__other', true);
+        planTotal += sp; actualTotal += sa;
+        const over = sa > sp * 1.1 + 1;
+        return '<div class="section"><h2>' + escapeHtml(title) + '</h2>' +
+          '<div class="act-cols act-head"><span></span><span>Plan</span><span>Actual</span></div>' + rows.join('') +
+          '<div class="act-cols act-total"><span class="name">Total</span><span class="num">' + fmt(sp) + '</span><span class="num' + (over ? ' over' : '') + '">' + fmt(sa) + '</span></div></div>';
+      }).join('') +
+        '<div class="section"><h2>Not in the plan</h2>' +
+        '<div class="act-cols act-head"><span></span><span></span><span>Amount</span></div>' +
+        '<div class="act-row act-cols"><span class="name">One-offs &amp; unbudgeted<span class="sub">e.g. home improvements, trades, holidays, anything not matched</span></span><span></span><span class="num">' + fmt(d.unbudgeted / 100) + '</span></div>' +
+        '<div class="act-row act-cols"><span class="name">Amex bill payments<span class="sub">spending on the card isn\'t broken down</span></span><span></span><span class="num">' + fmt(d.cardBills / 100) + '</span></div>' +
+        '</div>';
+
+      const diff = actualTotal - planTotal;
+      document.getElementById('act-summary').innerHTML =
+        '<div><div class="fig">' + fmt(planTotal) + '</div><div class="cap">Planned</div></div>' +
+        '<div><div class="fig">' + fmt(actualTotal) + '</div><div class="cap">Actual</div></div>' +
+        '<div><div class="fig" style="color:' + (diff > 0 ? 'var(--bad)' : 'var(--good)') + '">' + (diff > 0 ? '+' : '−') + fmt(Math.abs(diff)) + '</div><div class="cap">' + (diff > 0 ? 'Over' : 'Under') + '</div></div>';
     }
 
     // --- CSV Import ---
