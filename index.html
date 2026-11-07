@@ -509,6 +509,7 @@
     .title-input:hover { border-color: var(--line); }
     .title-input:focus { outline: none; border-color: var(--ink); background: var(--card); box-shadow: 0 0 0 3px rgba(31, 42, 36, 0.1); }
     .title-hint { color: var(--ink-soft); font-size: 13px; font-family: var(--sans); font-weight: 400; pointer-events: none; }
+    .row.section-total { margin-top: 12px; }
     .items-empty { font-size: 12px; color: var(--ink-soft); padding: 4px 0 8px; }
   </style>
 </head>
@@ -657,24 +658,28 @@
         </div>
         <div id="joint-housing-items"></div>
         <button class="btn-add-item" id="add-joint-housing" onclick="addItem('joint','housing')">+ Add to Housing</button>
+        <div class="row total section-total"><span class="label" id="totalLabel-joint-housing">Total</span><span class="amount" id="total-joint-housing">-</span></div>
       </div>
 
       <div class="section">
         <h2 class="section-title"><input type="text" class="title-input" id="title-joint-utilities" data-default="Utilities" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('joint','utilities',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="joint-utilities-items"></div>
         <button class="btn-add-item" id="add-joint-utilities" onclick="addItem('joint','utilities')">+ Add to Utilities</button>
+        <div class="row total section-total"><span class="label" id="totalLabel-joint-utilities">Total</span><span class="amount" id="total-joint-utilities">-</span></div>
       </div>
 
       <div class="section">
         <h2 class="section-title"><input type="text" class="title-input" id="title-joint-household" data-default="Household" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('joint','household',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="joint-household-items"></div>
         <button class="btn-add-item" id="add-joint-household" onclick="addItem('joint','household')">+ Add to Household</button>
+        <div class="row total section-total"><span class="label" id="totalLabel-joint-household">Total</span><span class="amount" id="total-joint-household">-</span></div>
       </div>
 
       <div class="section">
         <h2 class="section-title"><input type="text" class="title-input" id="title-joint-other" data-default="Other" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('joint','other',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="joint-other-items"></div>
         <button class="btn-add-item" id="add-joint-other" onclick="addItem('joint','other')">+ Add to Other</button>
+        <div class="row total section-total"><span class="label" id="totalLabel-joint-other">Total</span><span class="amount" id="total-joint-other">-</span></div>
       </div>
 
       <div class="section">
@@ -689,18 +694,21 @@
         <h2 class="section-title"><input type="text" class="title-input" id="title-cameron-transport" data-default="Transport" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('cameron','transport',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="cameron-transport-items"></div>
         <button class="btn-add-item" id="add-cameron-transport" onclick="addItem('cameron','transport')">+ Add to Transport</button>
+        <div class="row total section-total"><span class="label" id="totalLabel-cameron-transport">Total</span><span class="amount" id="total-cameron-transport">-</span></div>
       </div>
 
       <div class="section">
         <h2 class="section-title"><input type="text" class="title-input" id="title-cameron-personal" data-default="Personal" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('cameron','personal',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="cameron-personal-items"></div>
         <button class="btn-add-item" id="add-cameron-personal" onclick="addItem('cameron','personal')">+ Add to Personal</button>
+        <div class="row total section-total"><span class="label" id="totalLabel-cameron-personal">Total</span><span class="amount" id="total-cameron-personal">-</span></div>
       </div>
 
       <div class="section">
         <h2 class="section-title"><input type="text" class="title-input" id="title-cameron-other" data-default="Other" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('cameron','other',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="cameron-other-items"></div>
         <button class="btn-add-item" id="add-cameron-other" onclick="addItem('cameron','other')">+ Add to Other</button>
+        <div class="row total section-total"><span class="label" id="totalLabel-cameron-other">Total</span><span class="amount" id="total-cameron-other">-</span></div>
       </div>
 
       <div class="section">
@@ -715,18 +723,21 @@
         <h2 class="section-title"><input type="text" class="title-input" id="title-lucy-transport" data-default="Transport" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('lucy','transport',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="lucy-transport-items"></div>
         <button class="btn-add-item" id="add-lucy-transport" onclick="addItem('lucy','transport')">+ Add to Transport</button>
+        <div class="row total section-total"><span class="label" id="totalLabel-lucy-transport">Total</span><span class="amount" id="total-lucy-transport">-</span></div>
       </div>
 
       <div class="section">
         <h2 class="section-title"><input type="text" class="title-input" id="title-lucy-personal" data-default="Personal" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('lucy','personal',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="lucy-personal-items"></div>
         <button class="btn-add-item" id="add-lucy-personal" onclick="addItem('lucy','personal')">+ Add to Personal</button>
+        <div class="row total section-total"><span class="label" id="totalLabel-lucy-personal">Total</span><span class="amount" id="total-lucy-personal">-</span></div>
       </div>
 
       <div class="section">
         <h2 class="section-title"><input type="text" class="title-input" id="title-lucy-other" data-default="Other" aria-label="Section name (click to rename)" title="Click to rename" onchange="renameSection('lucy','other',this.value)"><span class="title-hint" aria-hidden="true">&#9998;</span></h2>
         <div id="lucy-other-items"></div>
         <button class="btn-add-item" id="add-lucy-other" onclick="addItem('lucy','other')">+ Add to Other</button>
+        <div class="row total section-total"><span class="label" id="totalLabel-lucy-other">Total</span><span class="amount" id="total-lucy-other">-</span></div>
       </div>
 
       <div class="section">
@@ -1221,6 +1232,11 @@
         if (document.activeElement !== input) input.value = title;
         const btn = document.getElementById('add-' + bucket + '-' + section);
         if (btn) btn.textContent = '+ Add to ' + title;
+        const total = document.getElementById('total-' + bucket + '-' + section);
+        if (total) {
+          // Housing also includes the mortgage and council tax shown above its lines
+          total.textContent = fmt(bucket === 'joint' && section === 'housing' ? getHousingTotal() : getSectionTotal(bucket, section));
+        }
       }));
     }
 
